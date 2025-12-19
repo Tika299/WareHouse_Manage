@@ -1,117 +1,111 @@
-# ĐẶC TẢ HỆ THỐNG QUẢN LÝ KHO VÀ BÁN HÀNG CHUYÊN SÂU
+# ĐẶC TẢ HỆ THỐNG QUẢN LÝ KHO VÀ BÁN HÀNG
 
-## I. QUẢN LÝ DANH MỤC CỐT LÕI (MASTER DATA)
-
-### 1. Quản lý Sản phẩm (Products)
-*   **Thông tin cơ bản:** Mã SKU (Barcode), Tên sản phẩm, Đơn vị tính, Danh mục, Hình ảnh.
-*   **Cấu trúc giá (Trọng tâm):**
-    *   **Giá nhập:** Lưu giá mua từ Nhà cung cấp của phiên nhập hàng gần nhất.
-    *   **Giá vốn (Cost Price):** Tính theo phương pháp Bình quân gia quyền (có tính cả chi phí phát sinh).
-    *   **Giá lẻ & Giá sỉ:** Được thiết lập dựa trên Giá nhập (Ví dụ: Giá lẻ = Giá nhập + 30%).
-*   **Định mức tồn kho:** Cảnh báo khi tồn kho dưới mức tối thiểu.
-
-### 2. Quản lý Nhà cung cấp (Suppliers)
-*   Thông tin liên hệ, lịch sử nhập hàng.
-*   Theo dõi **Công nợ phải trả** nhà cung cấp.
-
-### 3. Quản lý Khách hàng (Customers)
-*   Thông tin liên hệ, nhóm khách (Sỉ/Lẻ).
-*   Theo dõi **Công nợ phải thu** và lịch sử mua/đổi hàng.
+## 1. TỔNG QUAN HỆ THỐNG
+Hệ thống hỗ trợ quản lý vòng đời sản phẩm từ khâu nhập kho, tính toán giá vốn bình quân gia quyền, quản lý bán hàng đa phương thức, công nợ khách hàng và nghiệp vụ đổi hàng (Barter).
 
 ---
 
-## II. QUẢN LÝ NHẬP KHO & LOGIC TÍNH GIÁ
+## 2. QUẢN LÝ DANH MỤC SẢN PHẨM (PRODUCT CRUD)
+Mỗi sản phẩm lưu trữ các trường dữ liệu sau:
+*   **Thông tin cơ bản:** Mã SKU (Barcode), Tên sản phẩm, Đơn vị tính, Danh mục, Hình ảnh, Tồn kho hiện tại.
+*   **Nhóm dữ liệu giá:**
+    *   **Giá nhập NCC:** Giá mua từ nhà cung cấp (Cập nhật theo phiếu nhập mới nhất).
+    *   **Giá vốn (Cost Price):** Tính theo phương pháp Bình quân gia quyền (Có cộng phí phát sinh).
+    *   **Mức chênh lệch sỉ:** Số tiền cộng thêm (Người dùng nhập tay).
+    *   **Mức chênh lệch lẻ:** Số tiền cộng thêm (Người dùng nhập tay).
+    *   **Giá sỉ bán ra:** = Giá vốn + Mức chênh lệch sỉ.
+    *   **Giá lẻ bán ra:** = Giá vốn + Mức chênh lệch lẻ.
 
-### 1. Phiếu Nhập hàng (Purchase Order)
-*   **Nghiệp vụ:** Chọn NCC -> Chọn sản phẩm -> Nhập số lượng & Giá nhập (từ NCC).
-*   **Chi phí phát sinh:** Ô nhập tổng chi phí (Vận chuyển, bốc xếp, thuế...).
+---
+
+## 3. QUẢN LÝ NHÀ CUNG CẤP & PHIẾU NHẬP HÀNG
+
+### 3.1. Nhà cung cấp (Supplier)
+*   Quản lý thông tin: Tên, SĐT, Địa chỉ.
+*   Theo dõi **Công nợ NCC**: Tổng tiền nợ tích lũy từ các phiếu nhập chưa thanh toán hết.
+
+### 3.2. Phiếu nhập hàng (Purchase Order)
+*   **Thao tác:** Chọn NCC -> Chọn danh sách sản phẩm -> Số lượng nhập -> Giá nhập NCC.
+*   **Chi phí phát sinh:** Cho phép nhập tổng chi phí (Vận chuyển, phí bốc xếp, thuế...).
 *   **Cơ chế phân bổ chi phí:** 
-    *   Tỷ lệ phân bổ sản phẩm A = (Tổng giá trị nhập SP A) / (Tổng giá trị đơn nhập).
-    *   Chi phí phân bổ cho mỗi đơn vị SP A = (Tỷ lệ phân bổ A * Tổng chi phí phát sinh) / Số lượng nhập A.
-    *   **Giá nhập thực tế (Landed Cost)** = Giá nhập từ NCC + Chi phí phân bổ mỗi đơn vị.
-
-### 2. Cập nhật Giá vốn & Giá nhập
-Khi xác nhận "Nhập kho", hệ thống tự động thực hiện:
-1.  **Cập nhật Giá nhập:** Lấy giá từ NCC trong phiếu này đè vào trường "Giá nhập" của sản phẩm.
-2.  **Tính lại Giá vốn (Bình quân gia quyền):**
-    $$\text{Giá vốn mới} = \frac{(\text{Tồn hiện tại} \times \text{Giá vốn hiện tại}) + (\text{Số lượng nhập mới} \times \text{Giá nhập thực tế})}{\text{Tồn hiện tại} + \text{Số lượng nhập mới}}$$
-3.  **Tăng tồn kho** thực tế.
+    *   Tỷ lệ phân bổ sản phẩm A = (Giá trị nhập SP A) / (Tổng giá trị đơn nhập hàng)
+    *   Chi phí phân bổ đơn vị SP A = (Tỷ lệ phân bổ A * Tổng chi phí phát sinh) / Số lượng nhập A
+*   **Giá nhập thực tế (Landed Cost) của SP A** = Giá nhập NCC + Chi phí phân bổ đơn vị SP A.
 
 ---
 
-## III. QUẢN LÝ BÁN HÀNG & ĐƠN HÀNG
+## 4. LOGIC TÍNH GIÁ VỐN & CẬP NHẬT GIÁ BÁN
+Khi phiếu nhập kho được xác nhận (Duyệt), hệ thống tự động thực hiện:
 
-### 1. Tạo đơn hàng (Sales Order)
-*   Hỗ trợ quét mã vạch, tìm kiếm tên sản phẩm.
-*   Tự động áp dụng Giá sỉ hoặc Giá lẻ tùy theo loại khách hàng.
-*   Giảm tồn kho ngay khi đơn hàng được xác nhận xuất kho.
+**Bước 1: Tính lại Giá vốn mới (Bình quân gia quyền)**
+> **Giá vốn mới** = [(Tồn hiện tại * Giá vốn hiện tại) + (Số lượng nhập mới * Giá nhập thực tế)] / (Tồn hiện tại + Số lượng nhập mới)
 
-### 2. Thanh toán đa phương thức (Payment)
+**Bước 2: Cập nhật Giá bán tự động**
+> **Giá lẻ** = Giá vốn mới + Mức chênh lệch lẻ (Nhập tay)
+>
+> **Giá sỉ** = Giá vốn mới + Mức chênh lệch sỉ (Nhập tay)
+
+---
+
+## 5. TẠO ĐƠN HÀNG & THANH TOÁN
+
+### 5.1. Tạo đơn hàng (Sales Order)
+*   Quét mã vạch hoặc tìm kiếm sản phẩm.
+*   Chọn loại giá (Sỉ/Lẻ) tùy theo đối tượng khách hàng.
+*   Giảm tồn kho ngay sau khi xuất hóa đơn.
+
+### 5.2. Thanh toán đa phương thức (Payment)
 *   **Hình thức:** Tiền mặt, Chuyển khoản, Quẹt thẻ, Trả góp.
-*   **Thanh toán hỗn hợp:** Một đơn hàng có thể trả bằng nhiều cách (Ví dụ: 50% tiền mặt, 50% trả góp).
+*   **Hỗ trợ thanh toán hỗn hợp:** Cho phép khách trả bằng nhiều hình thức trên một đơn hàng.
 
-### 3. Trạng thái thanh toán & Công nợ
-*   **Đặt cọc:** Ghi nhận tiền cọc trước khi xuất hàng.
-*   **Trạng thái:** *Chưa thanh toán / Thanh toán một phần / Đã thanh toán.*
-*   Hệ thống tự động đẩy phần tiền còn thiếu vào **Công nợ khách hàng**.
-
----
-
-## IV. NGHIỆP VỤ ĐỔI HÀNG (BARTER/EXCHANGE)
-Đây là quy trình trao đổi hàng của mình lấy hàng của đối tác/khách hàng.
-
-1.  **Phần Xuất (Hàng của mình):**
-    *   Chọn sản phẩm trong kho -> Xuất theo Giá bán (Sỉ/Lẻ).
-    *   Hệ thống trừ kho và ghi nhận giá vốn tại thời điểm đó để tính lợi nhuận.
-2.  **Phần Thu (Hàng của khách):**
-    *   Nhập thông tin hàng thu về và **Giá định giá thu mua** (Giá này được coi là Giá nhập thực tế).
-    *   Hệ thống cộng kho hàng thu về và tính lại Giá vốn cho mã hàng đó (theo công thức bình quân gia quyền).
-3.  **Đối trừ giá trị:**
-    *   `Giá trị chênh lệch = Tổng giá trị hàng xuất - Tổng giá trị hàng thu`.
-    *   Nếu chênh lệch > 0: Khách trả thêm (Tiền mặt/Chuyển khoản) hoặc ghi nợ khách.
-    *   Nếu chênh lệch < 0: Mình trả thêm cho khách hoặc ghi nợ NCC.
+### 5.3. Trạng thái thanh toán & Công nợ khách hàng
+*   **Đặt cọc:** Ghi nhận tiền cọc cho đơn hàng chờ giao.
+*   **Trạng thái:** *Chưa thanh toán / Trả một phần / Đã thanh toán.*
+*   **Công nợ:** Số tiền khách còn thiếu sẽ được cộng vào sổ nợ của Khách hàng đó.
 
 ---
 
-## V. KIỂM KHO & TỒN KHO (INVENTORY CONTROL)
-
-### 1. Phiếu kiểm hàng (Stock Audit)
-*   Cho phép kiểm kê theo danh mục hoặc toàn bộ kho.
-*   Nhập "Số lượng thực tế" -> Hệ thống tính "Số lượng chênh lệch".
-*   **Xử lý chênh lệch:** 
-    *   Tự động cập nhật tồn kho về số thực tế.
-    *   Ghi nhận giá trị tài sản thừa/thiếu dựa trên **Giá vốn hiện tại**.
-
-### 2. Xuất - Nhập tồn
-*   Lưu trữ lịch sử mọi biến động kho (Thẻ kho).
-*   Mỗi dòng log phải hiển thị: Thời gian, Loại giao dịch (Bán hàng, Nhập hàng, Đổi hàng, Kiểm kho), Số lượng biến động, Số dư cuối.
+## 6. NGHIỆP VỤ ĐỔI HÀNG (BARTER/EXCHANGE)
+Cơ chế trao đổi hàng hóa linh hoạt:
+*   **Xuất hàng của mình:** Chọn hàng trong kho -> Xuất theo giá bán (Sỉ/Lẻ). Hệ thống trừ tồn kho và ghi nhận giá vốn để tính lợi nhuận.
+*   **Thu hàng đối tác:** Khai báo thông tin hàng thu về và **Giá định giá thu mua**. 
+    *   Hàng thu về được nhập vào kho như một phiếu nhập hàng.
+    *   Hệ thống tính lại Giá vốn cho mã hàng này (nếu đã có trong danh mục).
+*   **Xử lý chênh lệch:**
+    *   Nếu (Giá xuất > Giá thu): Khách trả thêm tiền hoặc ghi nợ cho khách.
+    *   Nếu (Giá xuất < Giá thu): Mình trả thêm tiền cho khách hoặc ghi nợ NCC.
 
 ---
 
-## VI. BÁO CÁO & DOANH THU (ANALYTICS)
+## 7. QUẢN LÝ KHO & KIỂM HÀNG
 
-### 1. Báo cáo Doanh thu & Lợi nhuận
-*   **Chi tiết theo ngày/tháng:** Doanh thu thực tế, Số đơn hàng, Giá trị trung bình đơn.
-*   **Báo cáo Lãi/Lỗ:**
-    *   Doanh thu thuần.
-    *   Giá vốn hàng bán (được chốt tại thời điểm xuất kho).
-    *   Lợi nhuận gộp = Doanh thu - Giá vốn.
+### 7.1. Phiếu kiểm hàng (Stock Audit)
+*   So sánh "Tồn thực tế" và "Tồn hệ thống".
+*   Hệ thống tự động điều chỉnh kho về số thực tế.
+*   Giá trị chênh lệch (Thừa/Thiếu) được hạch toán theo **Giá vốn hiện tại**.
 
-### 2. Báo cáo Công nợ
-*   Danh sách khách hàng nợ tiền (phải thu).
-*   Danh sách nhà cung cấp mình còn nợ (phải trả).
-
-### 3. Báo cáo Kho
-*   Giá trị tồn kho hiện tại (tính theo giá vốn).
-*   Danh sách sản phẩm bán chạy/bán chậm.
+### 7.2. Thẻ kho (Stock Log)
+*   Truy xuất chi tiết lịch sử: Ngày giờ, Người thực hiện, Loại giao dịch (Bán, Nhập, Đổi, Kiểm), Số lượng biến động và Số dư tồn cuối.
 
 ---
 
-## VII. YÊU CẦU KỸ THUẬT VÀ BẢO MẬT
+## 8. BÁO CÁO DOANH THU & CHI TIẾT
 
-1.  **Phân quyền (Roles):**
-    *   *Chủ cửa hàng (Admin):* Xem báo cáo lợi nhuận, chỉnh sửa giá, xóa dữ liệu.
-    *   *Nhân viên bán hàng (Sales):* Chỉ tạo đơn, thu tiền, không xem được giá vốn.
-    *   *Nhân viên kho (Storekeeper):* Chỉ làm phiếu nhập, kiểm hàng, không xem được doanh thu.
-2.  **Toàn vẹn dữ liệu:** Không cho phép xóa các phiếu đã phát sinh giao dịch tài chính (chỉ cho phép Hủy và lưu vết).
-3.  **In ấn:** Hỗ trợ in hóa đơn (Bill) và phiếu nhập/xuất kho.
+### 8.1. Báo cáo Doanh thu
+*   Doanh thu chi tiết theo ngày, tháng, năm.
+*   Thống kê doanh thu theo từng phương thức thanh toán.
+
+### 8.2. Báo cáo Lợi nhuận
+*   **Giá vốn hàng bán (COGS):** Tổng số lượng bán * Giá vốn (tại thời điểm xuất).
+*   **Lợi nhuận gộp** = Doanh thu thực tế - Giá vốn hàng bán.
+
+### 8.3. Báo cáo Công nợ
+*   Danh sách khách nợ (Phải thu).
+*   Danh sách nợ nhà cung cấp (Phải trả).
+
+---
+
+## 9. PHÂN QUYỀN HỆ THỐNG
+*   **Quản trị viên (Admin):** Toàn quyền cấu hình, xem báo cáo lợi nhuận, sửa mức chênh lệch giá.
+*   **Nhân viên kho:** Thực hiện nhập kho, kiểm hàng, xem thẻ kho. Không xem được doanh thu/giá bán.
+*   **Nhân viên bán hàng:** Tạo đơn hàng, thanh toán, đổi hàng. Không xem được giá vốn và báo cáo lãi lỗ.
