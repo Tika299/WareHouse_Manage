@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProductTemplateExport;
 use App\Imports\ProductImport;
+use App\Imports\ProductsImport;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
@@ -51,17 +54,44 @@ class ProductController extends Controller
         return back()->with('msg', 'Đã xóa sản phẩm!');
     }
 
+    public function show($id)
+    {
+        // Nếu lỡ rơi vào đây, quay về trang danh sách luôn
+        return redirect()->route('products.index');
+    }
+
     public function import(Request $request)
     {
         $request->validate([
-            'excel_file' => 'required|mimes:xlsx,xls,csv|max:2048',
+            'excel_file' => 'required|mimes:xlsx,xls,csv|max:2048'
         ]);
 
         try {
-            Excel::import(new ProductImport, $request->file('excel_file'));
-            return back()->with('msg', 'Nhập dữ liệu Excel thành công!');
+            Excel::import(new ProductsImport, $request->file('excel_file'));
+
+            // Sử dụng 'msg' để khớp với header của bạn
+            return redirect()->route('products.index')
+                ->with('msg', 'Nhập danh sách sản phẩm từ Excel thành công!');
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessages = [];
+
+            foreach ($failures as $failure) {
+                // Lấy lỗi đầu tiên của từng dòng
+                $errorMessages[] = "Dòng " . $failure->row() . ": " . $failure->errors()[0];
+            }
+
+            // Chuyển mảng lỗi thành chuỗi có xuống dòng để hiển thị
+            return redirect()->back()
+                ->with('warning', 'Import thất bại! <br>' . implode('<br>', $errorMessages));
         } catch (\Exception $e) {
-            return back()->with('warning', 'Lỗi file Excel: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('warning', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
+    }
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new ProductTemplateExport, 'mau_nhap_san_pham.xlsx');
     }
 }

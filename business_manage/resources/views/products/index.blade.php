@@ -74,8 +74,8 @@
                             - Hàng đầu tiên là tiêu đề: ma_sku, ten_san_pham, don_vi_tinh, gia_von, muc_cong_le, muc_cong_si, ton_kho, ton_toi_thieu.
                         </small>
                     </div>
-                    <a href="{{ asset('templates/sample_products.xlsx') }}" class="text-primary font-weight-bold">
-                        <i class="fas fa-download"></i> Tải file mẫu tại đây
+                    <a href="{{ route('products.template') }}" class="btn btn-outline-primary btn-sm btn-block">
+                        <i class="fas fa-download"></i> Tải file Excel mẫu tại đây
                     </a>
                 </div>
                 <div class="modal-footer">

@@ -47,12 +47,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- NHÓM KHO HÀNG ---
     Route::prefix('inventory')->group(function () {
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-        Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
+        Route::post('/san-pham/nhap-excel', [ProductController::class, 'import'])->name('products.import');
         Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
         Route::get('/imports/create', [ImportController::class, 'create'])->name('imports.create');
         Route::post('/imports/store', [ImportController::class, 'store'])->name('imports.store');
         Route::get('/lookup', [InventoryController::class, 'index'])->name('inventoryLookup.index');
         Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+        Route::get('/san-pham/tai-file-mau', [ProductController::class, 'downloadTemplate'])->name('products.template');
+        Route::resource('products', ProductController::class);
     });
 
     // --- NHÓM BÁN HÀNG ---
@@ -98,21 +100,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/payments', [ReportController::class, 'paymentReport'])->name('reportPayments');
     });
 
-    Route::resource('products', ProductController::class);
-
+    
     // Dùng resource để tự động có index, create, store, edit, update, destroy
     Route::resource('providers', ProviderController::class);
-
+    
     // Đảm bảo có route show để xem lịch sử nợ
     Route::get('/providers/{provider}', [ProviderController::class, 'show'])->name('providers.show');
-
+    
     Route::resource('audits', StockAuditController::class);
-
+    
     // --- NHÓM BÁO CÁO ---
     Route::get('/reports', [ReportController::class, 'index'])->name('reportOverview');
-
+    
     // --- THÔNG TIN CÁ NHÂN ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.users.edit');
+    
 });
 
 require __DIR__ . '/auth.php';
