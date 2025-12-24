@@ -14,4 +14,9 @@ class PurchaseOrder extends Model
         'total_final_amount',
         'paid_amount'
     ];
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
 }

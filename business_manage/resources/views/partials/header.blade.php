@@ -197,13 +197,14 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
         <div id="alert-box" style="position: fixed; top: 60px; right: 20px; z-index: 9999; min-width: 300px;">
             @if (session('msg'))
             <div class="alert alert-success alert-dismissible fade show">
-                {{ session('msg') }}
+                {!! session('msg') !!} {{-- Sửa dấu {{ }} thành {!! !!} ở đây (Dòng 140) --}}
                 <button type="button" class="close" data-dismiss="alert">&times;</button>
             </div>
             @endif
+
             @if (session('warning'))
             <div class="alert alert-warning alert-dismissible fade show">
-                {{ session('warning') }}
+                {!! session('warning') !!} {{-- Sửa dấu {{ }} thành {!! !!} ở đây (Dòng 146) --}}
                 <button type="button" class="close" data-dismiss="alert">&times;</button>
             </div>
             @endif
