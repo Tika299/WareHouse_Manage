@@ -20,6 +20,7 @@ use App\Http\Controllers\CreditLogController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StockAuditController;
+use App\Http\Controllers\InternalExportController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -55,6 +56,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
         Route::get('/san-pham/tai-file-mau', [ProductController::class, 'downloadTemplate'])->name('products.template');
         Route::resource('products', ProductController::class);
+        Route::resource('internal_exports', InternalExportController::class);
     });
 
     // --- NHÓM BÁN HÀNG ---
