@@ -17,27 +17,34 @@
                     <th>Mã SKU</th>
                     <th>Tên hàng</th>
                     <th>Tồn kho</th>
-                    <th>Giá vốn (BQGQ)</th>
-                    <th>Mức cộng lẻ</th>
-                    <th>Giá lẻ dự kiến</th>
-                    <th>Mức cộng sỉ</th>
-                    <th>Giá sỉ dự kiến</th>
+                    <th>Giá Vốn</th>
+                    <th>Giá Lẻ</th>
+                    <th>Giá Sỉ</th>
+                    <th>Giá CTV</th>
+                    <th>Giá Sàn</th>
                     <th width="100px">Thao tác</th>
                 </tr>
             </thead>
             <tbody class="text-13">
                 @foreach($products as $p)
                 <tr>
-                    <td>{{ $p->sku }}</td>
+                    <td class="bg-light"><b>{{ $p->sku }}</b></td>
                     <td>{{ $p->name }}</td>
                     <td class="{{ $p->stock_quantity < $p->min_stock ? 'text-danger font-weight-bold' : '' }}">
                         {{ $p->stock_quantity }} {{ $p->unit }}
                     </td>
-                    <td class="text-right">{{ number_format($p->cost_price) }}</td>
-                    <td class="text-success text-right">+{{ number_format($p->markup_retail) }}</td>
-                    <td class="text-primary font-weight-bold text-right">{{ number_format($p->retail_price) }}</td>
-                    <td class="text-success text-right">+{{ number_format($p->markup_wholesale) }}</td>
-                    <td class="text-orange font-weight-bold text-right">{{ number_format($p->wholesale_price) }}</td>
+                    <td class="text-right text-bold text-danger">{{ number_format($p->cost_price) }}</td>
+
+                    <!-- Hiển thị giá và hệ số trong ngoặc -->
+                    <td class="text-right">{{ number_format($p->retail_price) }} <br><small>(x{{ $p->factor_retail }})</small></td>
+                    <td class="text-right">{{ number_format($p->wholesale_price) }} <br><small>(x{{ $p->factor_wholesale }})</small></td>
+                    <td class="text-right">{{ number_format($p->ctv_price) }} <br><small>(x{{ $p->factor_ctv }})</small></td>
+
+                    <!-- Giá sàn nổi bật -->
+                    <td class="text-right text-orange text-bold">
+                        {{ number_format($p->ecommerce_price) }}
+                        <br><small>(M:{{ $p->factor_eco_margin }} | F:{{ $p->factor_eco_fee }})</small>
+                    </td>
                     <td>
                         <a href="{{ route('products.edit', $p->id) }}" class="btn btn-xs btn-warning"><i class="fas fa-edit"></i></a>
                         <form action="{{ route('products.destroy', $p->id) }}" method="POST" style="display:inline-block">
