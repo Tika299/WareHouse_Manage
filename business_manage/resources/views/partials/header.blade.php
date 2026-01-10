@@ -91,6 +91,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                                 <li><a href="{{ route('inventoryLookup.index') }}" class="dropdown-item">Tra cứu tồn kho</a></li>
                                 <li><a href="{{ route('audits.index') }}" class="dropdown-item">Kiểm kê kho</a></li>
                                 <li><a href="{{ route('internal_exports.index') }}" class="dropdown-item">Xuất kho nội bộ</a></li>
+                                <li><a href="{{ route('pricing.index') }}" class="dropdown-item">Chính sách giá</a></li>
                                 @if($isAdmin)
                                 <li><a href="{{ route('warehouses.index') }}" class="dropdown-item">Cấu hình kho</a></li>
                                 @endif
@@ -169,6 +170,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                 <a href="{{ route('inventoryLookup.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'stock' ? 'active' : '' }}">Tồn kho</button></a>
                 <a href="{{ route('audits.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'audits' ? 'active' : '' }}">Kiểm hàng</button></a>
                 <a href="{{ route('internal_exports.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'internal_exports' ? 'active' : '' }}">Xuất nội bộ</button></a>
+                <a href="{{ route('pricing.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'pricing' ? 'active' : '' }}">Chính sách Giá</button></a>
                 @endif
 
                 @if($activeGroup == 'sales')

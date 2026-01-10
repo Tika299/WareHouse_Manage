@@ -27,10 +27,23 @@ class ProviderController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:255']);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+        ]);
 
-        Supplier::create($request->all());
+        $supplier = \App\Models\Supplier::create($request->all());
 
+        // Nếu là yêu cầu AJAX từ trang Nhập hàng
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $supplier,
+                'message' => 'Thêm NCC thành công!'
+            ]);
+        }
+
+        // Nếu là yêu cầu bình thường từ trang quản lý NCC
         return redirect()->route('providers.index')->with('msg', 'Thêm nhà cung cấp thành công!');
     }
 

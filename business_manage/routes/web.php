@@ -21,6 +21,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StockAuditController;
 use App\Http\Controllers\InternalExportController;
+use App\Http\Controllers\PricingController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -47,6 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- NHÓM KHO HÀNG ---
     Route::prefix('inventory')->group(function () {
+        Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
+        Route::post('/pricing/update-all', [PricingController::class, 'updateAll'])->name('pricing.updateAll');
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
         Route::post('/san-pham/nhap-excel', [ProductController::class, 'import'])->name('products.import');
         Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
@@ -102,21 +105,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/payments', [ReportController::class, 'paymentReport'])->name('reportPayments');
     });
 
-    
+
     // Dùng resource để tự động có index, create, store, edit, update, destroy
     Route::resource('providers', ProviderController::class);
-    
+
     // Đảm bảo có route show để xem lịch sử nợ
     Route::get('/providers/{provider}', [ProviderController::class, 'show'])->name('providers.show');
-    
+
     Route::resource('audits', StockAuditController::class);
-    
+
     // --- NHÓM BÁO CÁO ---
     Route::get('/reports', [ReportController::class, 'index'])->name('reportOverview');
-    
+
     // --- THÔNG TIN CÁ NHÂN ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.users.edit');
-    
 });
 
 require __DIR__ . '/auth.php';
