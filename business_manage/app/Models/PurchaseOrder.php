@@ -19,4 +19,14 @@ class PurchaseOrder extends Model
     {
         return $this->belongsTo(Supplier::class);
     }
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function details() // giữ tên details để ám chỉ PurchaseDetail
+    {
+        return $this->hasMany(PurchaseDetail::class, 'purchase_order_id', 'id');
+    }
 }

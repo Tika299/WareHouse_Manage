@@ -10,6 +10,37 @@
             </button>
         </div>
     </div>
+
+    <!-- BỘ LỌC VÀ TÌM KIẾM -->
+    <div class="card-body border-bottom bg-light">
+        <form action="{{ route('products.index') }}" method="GET">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        </div>
+                        <input type="text" name="search" class="form-control"
+                            placeholder="Tìm theo tên sản phẩm hoặc mã SKU..."
+                            value="{{ request('search') }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="stock_status" class="form-control">
+                        <option value="">-- Tất cả trạng thái kho --</option>
+                        <option value="in_stock" {{ request('stock_status') == 'in_stock' ? 'selected' : '' }}>Còn hàng (An toàn)</option>
+                        <option value="low_stock" {{ request('stock_status') == 'low_stock' ? 'selected' : '' }}>Sắp hết hàng (Cảnh báo)</option>
+                        <option value="out_of_stock" {{ request('stock_status') == 'out_of_stock' ? 'selected' : '' }}>Đã hết hàng</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-info px-4">Lọc dữ liệu</button>
+                    <a href="{{ route('products.index') }}" class="btn btn-default">Xóa bộ lọc</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="card-body">
         <table class="table table-bordered table-striped">
             <thead class="bg-light text-13">
@@ -56,6 +87,12 @@
                 @endforeach
             </tbody>
         </table>
+        <div class="card-footer clearfix">
+            {{-- Phân trang --}}
+            <div class="">
+                {{ $products->links() }}
+            </div>
+        </div>
     </div>
 </div>
 <!-- Modal Import -->

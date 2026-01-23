@@ -3,3 +3,8 @@
 #head-nav{
     background-color: #25406E;
 }
+
+.pagination {
+    justify-content: center;
+    align-items: center;
+}
