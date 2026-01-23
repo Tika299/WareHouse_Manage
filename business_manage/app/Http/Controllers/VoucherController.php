@@ -44,52 +44,103 @@ class VoucherController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
-            // 1. Tạo phiếu
             $voucher = CashVoucher::create($request->all());
-
-            // 2. Cập nhật số dư Tài khoản (Accounts)
             $account = Account::lockForUpdate()->find($request->account_id);
+
             if ($request->voucher_type == 'receipt') {
                 $account->increment('current_balance', $request->amount);
+                // Xử lý nợ khách hàng (Tương tự như bên dưới nếu bạn muốn đơn bán cũng nhảy trạng thái)
+                $this->allocateDebt($request->customer_id, $request->amount, 'customer');
             } else {
                 $account->decrement('current_balance', $request->amount);
+
+                // XỬ LÝ TRẢ NỢ NCC VÀ CẬP NHẬT PHIẾU NHẬP
+                if ($request->category == 'debt_supplier' && $request->supplier_id) {
+                    $this->allocateDebt($request->supplier_id, $request->amount, 'supplier');
+                }
             }
 
-            // 3. Xử lý THU NỢ KHÁCH HÀNG (debt_customer)
-            if ($request->category == 'debt_customer' && $request->customer_id) {
-                $customer = Customer::lockForUpdate()->find($request->customer_id);
-                $oldDebt = $customer->total_debt;
-                $customer->decrement('total_debt', $request->amount);
-
-                CreditLog::create([
-                    'target_type' => 'customer',
-                    'target_id' => $customer->id,
-                    'ref_type' => 'voucher',
-                    'ref_id' => $voucher->id,
-                    'change_amount' => -$request->amount, // Trả nợ là biến động âm
-                    'new_balance' => $oldDebt - $request->amount,
-                    'note' => 'Thu nợ gộp: ' . $request->note
-                ]);
-            }
-
-            // 4. Xử lý TRẢ NỢ NCC (debt_supplier)
-            if ($request->category == 'debt_supplier' && $request->supplier_id) {
-                $supplier = Supplier::lockForUpdate()->find($request->supplier_id);
-                $oldDebt = $supplier->total_debt;
-                $supplier->decrement('total_debt', $request->amount);
-
-                CreditLog::create([
-                    'target_type' => 'supplier',
-                    'target_id' => $supplier->id,
-                    'ref_type' => 'voucher',
-                    'ref_id' => $voucher->id,
-                    'change_amount' => -$request->amount,
-                    'new_balance' => $oldDebt - $request->amount,
-                    'note' => 'Trả nợ NCC: ' . $request->note
-                ]);
-            }
-
-            return redirect()->route('vouchers.index')->with('msg', 'Đã lưu phiếu và cập nhật sổ quỹ thành công!');
+            return redirect()->route('vouchers.index')->with('msg', 'Đã lưu phiếu và cập nhật trạng thái nợ!');
         });
+    }
+
+    /**
+     * Hàm tự động phân bổ tiền trả nợ vào các đơn hàng cũ nhất
+     */
+    private function allocateDebt($targetId, $amount, $type)
+    {
+        $remainingAmount = $amount;
+
+        if ($type == 'supplier') {
+            // 1. Tìm các phiếu nhập còn nợ (paid < total), ưu tiên phiếu cũ nhất (id asc)
+            $orders = \App\Models\PurchaseOrder::where('supplier_id', $targetId)
+                ->whereRaw('paid_amount < total_final_amount')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            foreach ($orders as $order) {
+                if ($remainingAmount <= 0) break;
+
+                $debtOfOrder = $order->total_final_amount - $order->paid_amount;
+
+                if ($remainingAmount >= $debtOfOrder) {
+                    // Trả hết nợ cho phiếu này
+                    $order->increment('paid_amount', $debtOfOrder);
+                    $remainingAmount -= $debtOfOrder;
+                } else {
+                    // Trả được một phần
+                    $order->increment('paid_amount', $remainingAmount);
+                    $remainingAmount = 0;
+                }
+            }
+
+            // 2. Cập nhật tổng nợ gộp của NCC
+            $supplier = \App\Models\Supplier::find($targetId);
+            $oldDebt = $supplier->total_debt;
+            $supplier->decrement('total_debt', $amount);
+
+            // 3. Ghi Credit Log
+            \App\Models\CreditLog::create([
+                'target_type' => 'supplier',
+                'target_id' => $targetId,
+                'ref_type' => 'voucher',
+                'ref_id' => 0, // Hoặc ID voucher
+                'change_amount' => -$amount,
+                'new_balance' => $oldDebt - $amount,
+                'note' => 'Chi trả nợ gộp cho các phiếu nhập'
+            ]);
+        }
+
+        // Tương tự cho Customer nếu bạn muốn trang Bán hàng cũng tự nhảy trạng thái
+        if ($type == 'customer') {
+            $orders = \App\Models\SalesOrder::where('customer_id', $targetId)
+                ->whereRaw('paid_amount < total_final_amount')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            foreach ($orders as $order) {
+                if ($remainingAmount <= 0) break;
+                $debtOfOrder = $order->total_final_amount - $order->paid_amount;
+                if ($remainingAmount >= $debtOfOrder) {
+                    $order->increment('paid_amount', $debtOfOrder);
+                    $remainingAmount -= $debtOfOrder;
+                } else {
+                    $order->increment('paid_amount', $remainingAmount);
+                    $remainingAmount = 0;
+                }
+            }
+            $customer = \App\Models\Customer::find($targetId);
+            $oldDebt = $customer->total_debt;
+            $customer->decrement('total_debt', $amount);
+            \App\Models\CreditLog::create([
+                'target_type' => 'customer',
+                'target_id' => $targetId,
+                'ref_type' => 'voucher',
+                'ref_id' => 0,
+                'change_amount' => -$amount,
+                'new_balance' => $oldDebt - $amount,
+                'note' => 'Thu nợ gộp từ khách'
+            ]);
+        }
     }
 }

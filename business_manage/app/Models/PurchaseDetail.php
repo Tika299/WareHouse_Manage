@@ -14,4 +14,9 @@ class PurchaseDetail extends Model
         'allocated_cost',
         'final_unit_cost'
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

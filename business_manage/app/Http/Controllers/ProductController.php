@@ -12,9 +12,43 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::all();
+        // Khởi tạo query
+        $query = Product::query();
+
+        //1. Tìm kiếm theo Tên hoặc SKU
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        //2. Lọc theo trạng thái tồn kho
+        if ($request->filled('stock_status')) {
+            $status = $request->input('stock_status');
+
+            if ($status == 'low_stock') {
+                // Sắp hết hàng: tồn <= định mức tối thiểu
+                $query->whereRaw('stock_quantity <= min_stock')
+                    ->where('stock_quantity', '>', 0);
+            } elseif ($status == 'out_of_stock') {
+                // Hết hàng: tồn <= 0
+                $query->where('stock_quantity', '<=', 0);
+            } elseif ($status == 'in_stock') {
+                // Còn hàng: tồn > định mức tối thiểu
+                $query->whereRaw('stock_quantity > min_stock');
+            }
+        }
+
+        //Sắp xếp mới nhất và phân trang
+        $products = $query->latest()->paginate(20);
+
+        //Giữ lại các tham số lọc khi chuyển trang (Pagination)
+        $products->appends($request->all());
+
         return view('products.index', [
             'products' => $products,
             'activeGroup' => 'inventory',

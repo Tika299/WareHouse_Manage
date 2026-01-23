@@ -5,13 +5,62 @@ namespace App\Http\Controllers;
 use App\Models\{Product, PurchaseOrder, PurchaseDetail, Account, Supplier, CreditLog, StockLog};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ImportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $orders = PurchaseOrder::with('supplier')->latest()->paginate(15);
-        return view('imports.index', compact('orders'), ['activeGroup' => 'manageProfess', 'activeName' => 'imports']);
+        $query = PurchaseOrder::with('supplier');
+
+        //1. Tìm kiếm theo mã phiếu
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            //Loại bỏ chữ #PN
+            $searchId = preg_replace('/[^0-9]/', '', $search);
+
+            $query->where(function ($q) use ($searchId) {
+                $q->where('id', $searchId);
+            });
+        }
+
+        //2. Lọc theo nhà cung cấp
+        $query->when($request->supplier_id, function ($q) {
+            return $q->where('supplier_id', request('supplier_id'));
+        });
+
+        //3. Lọc theo Trạng thái thanh toán
+        if ($request->filled('status')) {
+            if ($request->status == 'paid') {
+                $query->whereColumn('paid_amount', '>=', 'total_final_amount');
+            } elseif ($request->status == 'debt') {
+                $query->whereColumn('paid_amount', '<', 'total_final_amount');
+            }
+        }
+
+        // 4. Lọc theo Khoảng ngày (Từ ngày - Đến ngày)
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        // Thực hiện truy vấn và phân trang
+        $orders = $query->latest()->paginate(15);
+
+        // Giữ lại các tham số lọc khi nhấn sang trang 2, 3...
+        $orders->appends($request->all());
+
+        // Lấy danh sách NCC để đổ vào dropdown lọc
+        $suppliers = \App\Models\Supplier::select('id', 'name')->get();
+
+        return view('imports.index', [
+            'orders' => $orders,
+            'suppliers' => $suppliers,
+            'activeGroup' => 'inventory',
+            'activeName' => 'imports'
+        ]);
     }
 
     public function create()
@@ -101,5 +150,17 @@ class ImportController extends Controller
 
             return redirect()->route('imports.index')->with('msg', 'Nhập hàng và tính lại giá vốn thành công!');
         });
+    }
+
+    //Hiển thị chi tiết phiếu nhập
+    public function show($id)
+    {
+        // Load phiếu nhập kèm thông tin NCC, tài khoản chi và chi tiết từng sản phẩm
+        $order = PurchaseOrder::with(['supplier', 'account', 'details.product'])->findOrFail($id);
+        return view('imports.show', [
+            'order' => $order,
+            'activeGroup' => 'inventory',
+            'activeName' => 'imports'
+        ]);
     }
 }

@@ -52,9 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pricing/update-all', [PricingController::class, 'updateAll'])->name('pricing.updateAll');
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
         Route::post('/san-pham/nhap-excel', [ProductController::class, 'import'])->name('products.import');
-        Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
-        Route::get('/imports/create', [ImportController::class, 'create'])->name('imports.create');
-        Route::post('/imports/store', [ImportController::class, 'store'])->name('imports.store');
+        Route::resource('imports', ImportController::class);
         Route::get('/lookup', [InventoryController::class, 'index'])->name('inventoryLookup.index');
         Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
         Route::get('/san-pham/tai-file-mau', [ProductController::class, 'downloadTemplate'])->name('products.template');
