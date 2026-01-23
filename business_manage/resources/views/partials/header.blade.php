@@ -23,12 +23,12 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
     <link rel="icon" type="image/x-icon" href="{{ asset('dist/img/icon/favicontpt.ico') }}">
     <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('dist/css/adminlte.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('dist/css/custom.css') }}"> {{-- Chứa các class bổ sung --}}
 
     <!-- Library CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ asset('dist/css/custom.css') }}"> {{-- Chứa các class bổ sung --}}
 
     <!-- Scripts -->
     <script src="{{ asset('plugins/jquery/jquery.min.js') }}"></script>
@@ -88,7 +88,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                             <ul class="dropdown-menu border-0 shadow">
                                 <li><a href="{{ route('products.index') }}" class="dropdown-item">Hàng hóa (Sản phẩm)</a></li>
                                 <li><a href="{{ route('imports.index') }}" class="dropdown-item">Nhập kho (Giá vốn)</a></li>
-                                <li><a href="{{ route('inventoryLookup.index') }}" class="dropdown-item">Tra cứu tồn kho</a></li>
+                                <!-- <li><a href="{{ route('inventoryLookup.index') }}" class="dropdown-item">Tra cứu tồn kho</a></li> -->
                                 <li><a href="{{ route('audits.index') }}" class="dropdown-item">Kiểm kê kho</a></li>
                                 <li><a href="{{ route('internal_exports.index') }}" class="dropdown-item">Xuất kho nội bộ</a></li>
                                 <li><a href="{{ route('pricing.index') }}" class="dropdown-item">Chính sách giá</a></li>
@@ -167,7 +167,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                 @if($activeGroup == 'inventory')
                 <a href="{{ route('products.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'products' ? 'active' : '' }}">Sản phẩm</button></a>
                 <a href="{{ route('imports.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'imports' ? 'active' : '' }}">Nhập kho</button></a>
-                <a href="{{ route('inventoryLookup.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'stock' ? 'active' : '' }}">Tồn kho</button></a>
+                <!-- <a href="{{ route('inventoryLookup.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'stock' ? 'active' : '' }}">Tồn kho</button></a> -->
                 <a href="{{ route('audits.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'audits' ? 'active' : '' }}">Kiểm hàng</button></a>
                 <a href="{{ route('internal_exports.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'internal_exports' ? 'active' : '' }}">Xuất nội bộ</button></a>
                 <a href="{{ route('pricing.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'pricing' ? 'active' : '' }}">Chính sách Giá</button></a>
