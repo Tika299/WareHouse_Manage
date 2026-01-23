@@ -8,16 +8,62 @@ use Illuminate\Support\Facades\DB;
 
 class StockAuditController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $audits = StockAudit::with('user')->latest()->paginate(15);
+        $query = StockAudit::with('user');
+
+        // 1. Tìm kiếm theo mã phiếu
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $searchId = preg_replace('/[^0-9]/', '', $search); // Lấy phần số từ chuỗi tìm kiếm
+            $query->where('id', $searchId);
+        }
+
+        // 2. Lọc theo ngày tháng (sửa typo 'form_date' thành 'from_date' nếu là lỗi, giả sử view dùng 'from_date')
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $query->whereBetween('created_at', [
+                $request->from_date . ' 00:00:00',
+                $request->to_date . ' 23:59:59'
+            ]);
+        }
+
+        $audits = $query->latest()->paginate(15);
+        $audits->appends($request->all());
         return view('inventory.audit.index', compact('audits'), ['activeGroup' => 'inventory', 'activeName' => 'audits']);
     }
 
     public function create()
     {
-        $products = Product::all();
-        return view('inventory.audit.create', compact('products'), ['activeGroup' => 'inventory', 'activeName' => 'audits']);
+        // Không load tất cả products nữa, vì dùng Ajax search
+        return view('inventory.audit.create', ['activeGroup' => 'inventory', 'activeName' => 'audits']);
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $query = $request->input('search'); // Từ khóa từ Select2 (params.term)
+
+        if (empty($query)) {
+            return response()->json(['results' => []]);;
+        }
+
+        $products = Product::where('name', 'LIKE', "%{$query}%")
+            ->orWhere('sku', 'LIKE', "%{$query}%")
+            ->limit(50) // Giới hạn kết quả để tránh tải nặng
+            ->get(['id', 'name', 'sku', 'stock_quantity', 'cost_price']);
+
+        // Format cho Select2
+        $results = $products->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'text' => $product->sku . ' - ' . $product->name,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'stock' => $product->stock_quantity,
+                'cost' => $product->cost_price,
+            ];
+        });
+
+        return response()->json(['results' => $results]);
     }
 
     public function store(Request $request)

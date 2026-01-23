@@ -68,7 +68,7 @@ class ImportController extends Controller
         $suppliers = Supplier::all();
         $products = Product::all();
         $accounts = Account::all();
-        return view('imports.create', compact('suppliers', 'products', 'accounts'), ['activeGroup' => 'manageProfess', 'activeName' => 'imports']);
+        return view('imports.create', compact('suppliers', 'products', 'accounts'), ['activeGroup' => 'inventory', 'activeName' => 'imports']);
     }
 
     public function store(Request $request)

@@ -8,9 +8,29 @@ use Illuminate\Support\Facades\DB;
 
 class InternalExportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $exports = InternalExport::with('user')->latest()->paginate(15);
+        $query = InternalExport::with('user');
+
+        // 1. Tìm kiếm theo mã phiếu
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            // Loại bỏ mã #IE
+            $searchId = preg_replace('/[^0-9]/', '', $search);
+            $query->where('id', $searchId);
+        }
+
+        //2. Lọc theo Khoảng ngày (Từ ngày - Đến ngày)
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        $exports = $query->latest()->paginate(10);
+        $exports->appends($request->all());
+
         return view('inventory.internal_exports.index', compact('exports'), [
             'activeGroup' => 'inventory',
             'activeName' => 'internal_exports'

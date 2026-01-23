@@ -41,7 +41,31 @@
                     <label>Thanh toán ngay</label>
                     <input type="number" name="paid_amount" class="form-control" value="0">
                 </div>
+
+                <!-- Ô TÌM KIẾM SẢN PHẨM (Bây giờ dùng Ajax) -->
+                <div class="col-md-3">
+                    <div class="">
+                        <label class="form-label fw-semibold text-primary mb-2">
+                            Tìm sản phẩm
+                        </label>
+
+                        <div class="input-group" style="flex-wrap: nowrap;">
+                            <span class="input-group-text bg-primary" style="border-radius: 0; border-top-left-radius: .25rem; border-bottom-left-radius: .25rem; border: 0;">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <select id="productSearch" class="form-select select2" style="padding-left: 10px; border: 1px solid #ced4da; width: 100%; border-top-right-radius: .25rem; border-bottom-right-radius: .25rem;">
+                                <option value="">Nhập tên hoặc mã SKU...</option>
+                            </select>
+                        </div>
+
+                        <small class="text-muted mt-2 d-block">
+                            Chọn sản phẩm để thêm vào danh sách
+                        </small>
+                    </div>
+                </div>
             </div>
+
+
 
             <table class="table table-bordered mt-4" id="productTable">
                 <thead>
@@ -50,24 +74,16 @@
                         <th width="150">Số lượng</th>
                         <th width="200">Giá nhập NCC</th>
                         <th width="200">Thành tiền</th>
-                        <th width="50"></th>
+                        <th width="50">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>
-                            <select name="items[0][product_id]" class="form-control">
-                                @foreach($products as $p) <option value="{{ $p->id }}">{{ $p->name }} (Tồn: {{ $p->stock_quantity }})</option> @endforeach
-                            </select>
-                        </td>
-                        <td><input type="number" name="items[0][quantity]" class="form-control qty" value="1"></td>
-                        <td><input type="number" name="items[0][import_price]" class="form-control price" value="0"></td>
-                        <td class="text-right subtotal">0 đ</td>
-                        <td></td>
+                    {{-- Sản phẩm sẽ được thêm vào đây bằng JavaScript --}}
+                    <tr id="empty-row">
+                        <td colspan="4" class="text-center p-4 text-muted">Chưa có sản phẩm nào được chọn. Vui lòng tìm ở ô phía trên.</td>
                     </tr>
                 </tbody>
             </table>
-            <button type="button" class="btn btn-sm btn-info" id="addRow">+ Thêm sản phẩm</button>
         </div>
         <div class="card-footer">
             <input type="hidden" name="total_product_value" id="total_product_value" value="0">
@@ -112,7 +128,6 @@
     </div>
 </div>
 
-@push('scripts')
 <script>
     // Thêm NCC nhanh trong modal
     $(document).ready(function() {
@@ -149,39 +164,158 @@
         });
     });
 
-    let rowIdx = 1;
-    $('#addRow').click(function() {
-        let html = `<tr>
-            <td><select name="items[${rowIdx}][product_id]" class="form-control">@foreach($products as $p) <option value="{{ $p->id }}">{{ $p->name }}</option> @endforeach</select></td>
-            <td><input type="number" name="items[${rowIdx}][quantity]" class="form-control qty" value="1"></td>
-            <td><input type="number" name="items[${rowIdx}][import_price]" class="form-control price" value="0"></td>
-            <td class="text-right subtotal">0 đ</td>
-            <td><button type="button" class="btn btn-danger btn-xs removeRow">x</button></td>
-        </tr>`;
-        $('#productTable tbody').append(html);
-        rowIdx++;
-    });
+    let rowIdx = 0;
 
-    $(document).on('click', '.removeRow', function() {
-        $(this).closest('tr').remove();
-        calculateTotal();
-    });
-    $(document).on('input', '.qty, .price', function() {
-        calculateTotal();
-    });
+    $(document).ready(function() {
 
-    function calculateTotal() {
-        let grandTotal = 0;
-        $('#productTable tbody tr').each(function() {
-            let q = parseFloat($(this).find('.qty').val()) || 0;
-            let p = parseFloat($(this).find('.price').val()) || 0;
-            let sub = q * p;
-            $(this).find('.subtotal').text(new Intl.NumberFormat('vi-VN').format(sub) + ' đ');
-            grandTotal += sub;
+        // ===============================
+        // SELECT2 SEARCH - FIX RACE CONDITION
+        // ===============================
+        $('#productSearch').select2({
+            theme: 'bootstrap4',
+            placeholder: "Nhập tên hoặc mã SKU...",
+            allowClear: true,
+            minimumInputLength: 0, //  cho phép focus & gõ
+            ajax: {
+                url: '{{ route("products.search") }}',
+                dataType: 'json',
+                delay: 300,
+
+                //  CHẶN REQUEST KHI < 2 KÝ TỰ
+                data: function(params) {
+                    if (!params.term || params.term.trim().length < 2) {
+                        return {
+                            search: '__EMPTY__' // gửi dummy để Select2 không cache kết quả cũ
+                        };
+                    }
+
+                    return {
+                        search: params.term.trim()
+                    };
+                },
+
+                processResults: function(data, params) {
+                    // Nếu keyword không hợp lệ → không render gì
+                    if (!params.term || params.term.trim().length < 2) {
+                        return {
+                            results: []
+                        };
+                    }
+
+                    return {
+                        results: data.results
+                    };
+                },
+
+                cache: false
+            }
         });
-        $('#total_product_value').val(grandTotal);
-        $('#display_total').text(new Intl.NumberFormat('vi-VN').format(grandTotal));
-    }
+
+        // Khi clear → đóng dropdown cho sạch UI
+        $('#productSearch').on('select2:clear', function() {
+            $(this).select2('close');
+        });
+
+        // ===============================
+        // KHI CHỌN SẢN PHẨM
+        // ===============================
+        $('#productSearch').on('select2:select', function(e) {
+            let data = e.params.data;
+
+            let productId = data.id;
+            let productName = data.name;
+            let productSku = data.sku;
+            let stock = data.stock_quantity || 0; // Sử dụng stock_quantity nếu có
+
+            // Không cho trùng sản phẩm
+            if ($(`#row-${productId}`).length > 0) {
+                Swal.fire('Thông báo', 'Sản phẩm này đã có trong danh sách!', 'info');
+                $('#productSearch').val(null).trigger('change');
+                return;
+            }
+
+            $('#empty-row').hide();
+
+            let html = `
+                <tr id="row-${productId}">
+                    <td>
+                        <b>${productSku || ''}</b> - ${productName} (Tồn: ${stock})
+                        <input type="hidden" name="items[${rowIdx}][product_id]" value="${productId}">
+                    </td>
+                    <td>
+                        <input type="number"
+                               name="items[${rowIdx}][quantity]"
+                               class="form-control qty text-center"
+                               value="1"
+                               min="1"
+                               required>
+                    </td>
+                    <td>
+                        <input type="number"
+                               name="items[${rowIdx}][import_price]"
+                               class="form-control price text-center"
+                               value="0"
+                               min="0"
+                               required>
+                    </td>
+                    <td class="text-right subtotal">0 đ</td>
+                    <td class="text-center">
+                        <button type="button"
+                                class="btn btn-sm btn-danger btn-remove"
+                                data-id="${productId}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+
+            $('#productTable tbody').append(html);
+            rowIdx++;
+
+            // Reset search
+            $('#productSearch').val(null).trigger('change');
+
+            calculateTotal();
+        });
+
+        // ===============================
+        // REMOVE ROW
+        // ===============================
+        $(document).on('click', '.btn-remove', function() {
+            $(this).closest('tr').remove();
+            if ($('#productTable tbody tr:visible').not('#empty-row').length === 0) {
+                $('#empty-row').show();
+            }
+            calculateTotal();
+        });
+
+        // ===============================
+        // CALCULATE
+        // ===============================
+        $(document).on('input', '.qty, .price', function() {
+            let tr = $(this).closest('tr');
+            let qty = parseFloat(tr.find('.qty').val()) || 0;
+            let price = parseFloat(tr.find('.price').val()) || 0;
+            let sub = qty * price;
+
+            tr.find('.subtotal').text(new Intl.NumberFormat('vi-VN').format(sub) + ' đ');
+
+            calculateTotal();
+        });
+
+        function calculateTotal() {
+            let grandTotal = 0;
+
+            $('.qty').each(function() {
+                let tr = $(this).closest('tr');
+                let qty = parseFloat($(this).val()) || 0;
+                let price = parseFloat(tr.find('.price').val()) || 0;
+                grandTotal += qty * price;
+            });
+
+            $('#total_product_value').val(grandTotal);
+            $('#display_total').text(new Intl.NumberFormat('vi-VN').format(grandTotal));
+        }
+    });
 </script>
-@endpush
 @endsection

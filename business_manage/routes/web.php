@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
         Route::post('/pricing/update-all', [PricingController::class, 'updateAll'])->name('pricing.updateAll');
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('/products/search', [StockAuditController::class, 'searchProducts'])->name('products.search');
         Route::post('/san-pham/nhap-excel', [ProductController::class, 'import'])->name('products.import');
         Route::resource('imports', ImportController::class);
         Route::get('/lookup', [InventoryController::class, 'index'])->name('inventoryLookup.index');
