@@ -6,6 +6,43 @@
         <h3 class="card-title font-weight-bold">Danh sách Khách hàng & Nợ gộp</h3>
         <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm ml-auto">+ Thêm khách hàng</a>
     </div>
+
+    <!-- BỘ LỌC TÌM KIẾM -->
+    <div class="card-body border-bottom bg-light">
+        <form action="{{ route('customers.index') }}" method="GET">
+            <div class="row align-items-center">
+                <!-- Tìm khách hàng -->
+                <div class="col-md-5">
+                    <input type="text" name="search" class="form-control"
+                        placeholder="Tìm theo tên hoặc số điện thoại..."
+                        value="{{ request('search') }}">
+                </div>
+
+                <!-- Lọc theo khoảng nợ -->
+                <div class="col-md-3 d-flex align-items-center">
+                    <span style="white-space: nowrap; margin-right: 10px;">Lọc theo nợ:</span>
+                    <input type="number" name="debt_from" class="form-control form-control-sm mr-1"
+                        placeholder="Từ"
+                        value="{{ request('debt_from') }}">
+
+                    <input type="number" name="debt_to" class="form-control form-control-sm"
+                        placeholder="Đến"
+                        value="{{ request('debt_to') }}">
+                </div>
+
+                <!-- Nút bấm -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <a href="{{ route('customers.index') }}" class="btn btn-default btn-sm" title="Xóa lọc">
+                        <i class="fas fa-sync-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="card-body p-0">
         <table class="table table-hover table-striped">
             <thead>
