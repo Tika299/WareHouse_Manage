@@ -15,26 +15,22 @@
     <!-- BỘ LỌC TÌM KIẾM -->
     <div class="card-body border-bottom bg-light">
         <form action="{{ route('imports.index') }}" method="GET">
-            <div class="row">
-                <!-- Tìm mã phiếu -->
+            <div class="row align-items-center">
                 <div class="col-md-2">
                     <input type="text" name="search" class="form-control form-control-sm"
                         placeholder="Mã phiếu (#PN...)" value="{{ request('search') }}">
                 </div>
 
-                <!-- Lọc Nhà cung cấp -->
-                <div class="col-md-3">
-                    <select name="supplier_id" class="form-control form-control-sm select2">
-                        <option value="">-- Tất cả Nhà cung cấp --</option>
-                        @foreach($suppliers as $s)
-                        <option value="{{ $s->id }}" {{ request('supplier_id') == $s->id ? 'selected' : '' }}>
-                            {{ $s->name }}
-                        </option>
-                        @endforeach
-                    </select>
+                <div class="col-md-2">
+                    <x-select2-ajax
+                        name="supplier_id"
+                        label="" {{-- Để trống nhãn cho thanh lọc gọn gàng --}}
+                        :url="route('providers.searchAjax')"
+                        placeholder="-- Nhà cung cấp --"
+                        :value="request('supplier_id')"
+                        :text="$selectedSupplier ? $selectedSupplier->name : null" />
                 </div>
 
-                <!-- Lọc Trạng thái -->
                 <div class="col-md-2">
                     <select name="status" class="form-control form-control-sm">
                         <option value="">-- Trạng thái --</option>
@@ -43,18 +39,23 @@
                     </select>
                 </div>
 
-                <!-- Lọc Ngày -->
-                <div class="col-md-3 d-flex">
-                    <input type="date" name="start_date" class="form-control form-control-sm mr-1" value="{{ request('start_date') }}">
-                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                <div class="col-md-2">
+                    <div class="input-group input-group-sm">
+                        <input type="date" name="start_date" class="form-control"
+                            value="{{ request('start_date') }}">
+                        <div class="input-group-append input-group-prepend">
+                            <span class="input-group-text">đến</span>
+                        </div>
+                        <input type="date" name="end_date" class="form-control"
+                            value="{{ request('end_date') }}">
+                    </div>
                 </div>
 
-                <!-- Nút bấm -->
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-info btn-sm">
+                <div class="col-md-2 d-flex">
+                    <button type="submit" class="btn btn-info btn-sm mr-1">
                         <i class="fas fa-search"></i>
                     </button>
-                    <a href="{{ route('imports.index') }}" class="btn btn-default btn-sm" title="Xóa lọc">
+                    <a href="{{ route('imports.index') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-sync-alt"></i>
                     </a>
                 </div>

@@ -53,11 +53,15 @@ class ImportController extends Controller
         $orders->appends($request->all());
 
         // Lấy danh sách NCC để đổ vào dropdown lọc
-        $suppliers = \App\Models\Supplier::select('id', 'name')->get();
+        $selectedSupplier = null;
+        if ($request->filled('supplier_id')) {
+            // Tìm NCC dựa trên ID từ link URL
+            $selectedSupplier = \App\Models\Supplier::find($request->supplier_id);
+        }
 
         return view('imports.index', [
             'orders' => $orders,
-            'suppliers' => $suppliers,
+            'selectedSupplier' => $selectedSupplier,
             'activeGroup' => 'inventory',
             'activeName' => 'imports'
         ]);
@@ -65,10 +69,8 @@ class ImportController extends Controller
 
     public function create()
     {
-        $suppliers = Supplier::all();
-        $products = Product::all();
         $accounts = Account::all();
-        return view('imports.create', compact('suppliers', 'products', 'accounts'), ['activeGroup' => 'inventory', 'activeName' => 'imports']);
+        return view('imports.create', compact('accounts'), ['activeGroup' => 'inventory', 'activeName' => 'imports']);
     }
 
     public function store(Request $request)

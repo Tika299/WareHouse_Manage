@@ -28,26 +28,14 @@
                         <input type="text" name="note" class="form-control" placeholder="Ví dụ: Xuất dùng cho văn phòng...">
                     </div>
                 </div>
-                <!-- Ô TÌM KIẾM SẢN PHẨM (Bây giờ dùng Ajax) -->
+                <!-- Ô TÌM KIẾM SẢN PHẨM (Component tự động init Select2) -->
                 <div class="col-md-4">
-                    <div class="">
-                        <label class="form-label fw-semibold text-primary mb-2">
-                            Tìm sản phẩm
-                        </label>
-
-                        <div class="input-group" style="flex-wrap: nowrap;">
-                            <span class="input-group-text bg-primary" style="border-radius: 0; border-top-left-radius: .25rem; border-bottom-left-radius: .25rem; border: 0;">
-                                <i class="bi bi-search"></i>
-                            </span>
-                            <select id="productSearch" class="form-select select2" style="padding-left: 10px; border: 1px solid #ced4da; width: 100%; border-top-right-radius: .25rem; border-bottom-right-radius: .25rem;">
-                                <option value="">Nhập tên hoặc mã SKU...</option>
-                            </select>
-                        </div>
-
-                        <small class="text-muted mt-2 d-block">
-                            Chọn sản phẩm để thêm vào danh sách
-                        </small>
-                    </div>
+                    <x-select2-ajax
+                        name="search_product"
+                        id="search_product" {{-- ID này sẽ được dùng trong Script --}}
+                        label="Tìm sản phẩm kiểm kê"
+                        :url="route('products.searchAjax')"
+                        placeholder="Gõ tên hoặc mã SKU..." />
                 </div>
             </div>
 
@@ -83,101 +71,49 @@
 
     $(document).ready(function() {
 
-        // ===============================
-        // SELECT2 SEARCH - FIX RACE CONDITION
-        // ===============================
-        $('#productSearch').select2({
-            theme: 'bootstrap4',
-            placeholder: "Nhập tên hoặc mã SKU...",
-            allowClear: true,
-            minimumInputLength: 0, //  cho phép focus & gõ
-            ajax: {
-                url: '{{ route("products.search") }}',
-                dataType: 'json',
-                delay: 300,
+        $('#search_product').on('select2:select', function(e) {
+            let data = e.params.data; // Dữ liệu từ Trait Select2Searchable trả về
 
-                //  CHẶN REQUEST KHI < 2 KÝ TỰ
-                data: function(params) {
-                    if (!params.term || params.term.trim().length < 2) {
-                        return {
-                            search: '__EMPTY__' // gửi dummy để Select2 không cache kết quả cũ
-                        };
-                    }
-
-                    return {
-                        search: params.term.trim()
-                    };
-                },
-
-                processResults: function(data, params) {
-                    // Nếu keyword không hợp lệ → không render gì
-                    if (!params.term || params.term.trim().length < 2) {
-                        return {
-                            results: []
-                        };
-                    }
-
-                    return {
-                        results: data.results
-                    };
-                },
-
-                cache: false
-            }
-        });
-
-        // Khi clear → đóng dropdown cho sạch UI
-        $('#productSearch').on('select2:clear', function() {
-            $(this).select2('close');
-        });
-
-        // ===============================
-        // KHI CHỌN SẢN PHẨM
-        // ===============================
-        $('#productSearch').on('select2:select', function(e) {
-            let data = e.params.data;
-
-            let productId = data.id;
-            let productName = data.name;
-            let productSku = data.sku;
-            let stock = data.stock;
-            let cost = data.cost;
-
-            // Không cho trùng sản phẩm
-            if ($(`#row-${productId}`).length > 0) {
+            // 1. Kiểm tra trùng sản phẩm
+            if ($(`#row-${data.id}`).length > 0) {
                 Swal.fire('Thông báo', 'Sản phẩm này đã có trong danh sách kiểm kê!', 'info');
-                $('#productSearch').val(null).trigger('change');
+                $(this).val(null).trigger('change');
                 return;
             }
 
+            // 2. Ẩn dòng thông báo "Trống"
             $('#empty-row').hide();
 
-            // Thêm dòng mới
+            // 3. Render dòng mới
+            // Lưu ý: data.stock và data.cost_price lấy từ mảng map() trong Trait
             let html = `
-                <tr id="row-${productId}">
+                <tr id="row-${data.id}">
                     <td>
-                        <b>${productSku}</b> - ${productName}
-                        <input type="hidden" name="items[${rowIdx}][product_id]" value="${productId}">
+                        <b class="text-primary">${data.sku}</b> - ${data.name}
+                        <input type="hidden" name="items[${rowIdx}][product_id]" value="${data.id}">
                     </td>
-                    <td class="text-center text-bold text-primary" style="line-height: 38px;">${stock}</td>
+                    <td class="text-center system-qty">${data.stock}</td>
                     <td>
-                        <input type="number" name="items[${rowIdx}][quantity]" 
-                               class="form-control text-center input-qty" 
-                               value="1" min="1" max="${stock}" 
+                        <input type="number"
+                               name="items[${rowIdx}][quantity]"
+                               class="form-control actual-qty text-center"
+                               value="1" min="1" max="${data.stock}"
+                               data-cost="${data.cost_price}"
                                required>
-                        <small class="text-danger error-msg" style="display:none">Vượt quá tồn kho!</small>
                     </td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger btn-remove"><i class="fas fa-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-danger btn-remove">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </td>
                 </tr>
             `;
 
-            $('#itemTable').append(html);
+            $('#exportBody').append(html);
             rowIdx++;
 
-            // Reset search
-            $('#productSearch').val(null).trigger('change');
+            // 4. Reset ô tìm kiếm về trạng thái trống
+            $(this).val(null).trigger('change');
 
             calculateTotal();
         });
@@ -206,6 +142,25 @@
                 $('#btnSubmit').prop('disabled', false);
             }
         });
+
+        function calculateTotal() {
+            let totalValue = 0;
+
+            $('.actual-qty').each(function() {
+                let tr = $(this).closest('tr');
+                let systemQty = parseInt(tr.find('.system-qty').text()) || 0;
+                let actualQty = parseInt($(this).val()) || 0;
+                let costPrice = parseFloat($(this).data('cost')) || 0;
+
+                totalValue += (actualQty - systemQty) * costPrice;
+            });
+
+            let color = totalValue < 0 ? 'text-danger' : (totalValue > 0 ? 'text-success' : '');
+            $('#total-diff-display')
+                .text(new Intl.NumberFormat('vi-VN').format(totalValue) + ' đ')
+                .removeClass('text-danger text-success')
+                .addClass(color);
+        }
     });
 </script>
 @endpush

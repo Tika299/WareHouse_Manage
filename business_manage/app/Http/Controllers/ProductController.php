@@ -9,9 +9,11 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Traits\Select2Searchable;
 
 class ProductController extends Controller
 {
+    use Select2Searchable;
     public function index(Request $request)
     {
         // Khởi tạo query
@@ -127,5 +129,10 @@ class ProductController extends Controller
     public function downloadTemplate()
     {
         return Excel::download(new ProductTemplateExport, 'mau_nhap_san_pham.xlsx');
+    }
+
+    public function searchAjax(Request $request)
+    {
+        return $this->performSelect2Search($request, \App\Models\Product::class, ['name', 'sku']);
     }
 }
