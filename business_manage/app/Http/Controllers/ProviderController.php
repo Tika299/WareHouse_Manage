@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use App\Traits\Select2Searchable;
 
 class ProviderController extends Controller
 {
+    use Select2Searchable;
+
     public function index()
     {
         $suppliers = Supplier::all();
@@ -88,5 +91,10 @@ class ProviderController extends Controller
 
         $provider->delete();
         return back()->with('msg', 'Đã xóa nhà cung cấp!');
+    }
+
+    public function searchAjax(Request $request)
+    {
+        return $this->performSelect2Search($request, Supplier::class, ['name', 'phone']);
     }
 }

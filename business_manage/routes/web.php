@@ -51,6 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
         Route::post('/pricing/update-all', [PricingController::class, 'updateAll'])->name('pricing.updateAll');
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
+        Route::get('/products/search-ajax', [ProductController::class, 'searchAjax'])->name('products.searchAjax');
         Route::post('/san-pham/nhap-excel', [ProductController::class, 'import'])->name('products.import');
         Route::resource('imports', ImportController::class);
         Route::get('/lookup', [InventoryController::class, 'index'])->name('inventoryLookup.index');
@@ -63,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- NHÓM BÁN HÀNG ---
     Route::prefix('sales')->group(function () {
         Route::resource('exports', ExportController::class);
+        Route::get('customers/search-ajax', [CustomerController::class, 'searchAjax'])->name('customers.searchAjax');
         Route::resource('customers', CustomerController::class);
 
         Route::resource('shipping_units', ShippingUnitController::class);
@@ -105,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
     // Dùng resource để tự động có index, create, store, edit, update, destroy
+    Route::get('/providers/search-ajax', [ProviderController::class, 'searchAjax'])->name('providers.searchAjax');
     Route::resource('providers', ProviderController::class);
 
     // Đảm bảo có route show để xem lịch sử nợ

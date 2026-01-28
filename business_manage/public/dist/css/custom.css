@@ -13,3 +13,80 @@
     justify-content: center;
     align-items: center;
 }
+
+.select2-container .select2-selection--single {
+    height: 38px !important;
+    border: 1px solid #ced4da;
+}
+
+.select2-selection__rendered {
+    line-height: 36px !important;
+    padding-left: 10px;
+}
+
+.select2-selection__arrow {
+    height: 36px !important;
+}
+
+
+.select2-selection[aria-controls="select2-productSearch-container"] {
+    border-top-right-radius: .25rem !important;
+    border-bottom-right-radius: .25rem !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.form-group {
+    margin-bottom: 0;
+}
+
+/* Chuẩn hóa input, select, select2 */
+.form-control-sm,
+select.form-control-sm,
+.input-group > .form-control-sm,
+.input-group > select.form-control-sm,
+.select2-container--bootstrap4 .select2-selection--single {
+    height: 38px !important;           /* đồng bộ chiều cao */
+    padding: 0.25rem 0.5rem;           /* padding nhỏ gọn */
+    font-size: 0.875rem;               /* ~14px, khớp text-13 nếu bạn dùng */
+    line-height: 1.5;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+}
+
+/* Fix Select2 cho khớp hoàn toàn */
+.select2-container--bootstrap4 .select2-selection--single {
+    border: 1px solid #ced4da !important;
+}
+
+.select2-container--bootstrap4 .select2-selection__rendered {
+    line-height: 36px !important;      /* căn giữa theo chiều dọc */
+    padding-left: 0.75rem !important;
+    padding-right: 1.75rem !important;
+}
+
+.select2-container--bootstrap4 .select2-selection__arrow {
+    height: 36px !important;
+}
+
+/* Date input fix (thường bị lệch nhẹ) */
+input[type="date"].form-control-sm {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+}
+
+/* Đảm bảo input-group trong date range cũng đẹp */
+.input-group.date-range .form-control {
+    height: 38px;
+}
+
+.select2-container--bootstrap4 {
+    width: 293px !important;
+    top: -5px;
+    left: -9px;
+}
+
+span[role="textbox"] {
+    position: relative;
+    top: -4px;
+}

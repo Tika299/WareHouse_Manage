@@ -5,12 +5,38 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use Illuminate\Http\Request;
+use App\Traits\Select2Searchable;
 
 class CustomerController extends Controller
 {
-    public function index()
+    use Select2Searchable;
+    public function index(Request $request)
     {
-        $customers = Customer::latest()->paginate(15);
+        $query = Customer::select('id', 'name', 'phone', 'address', 'total_debt', 'created_at');
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+
+            $query->where(function ($q) use ($search) {
+                // Sử dụng LIKE để tìm kiếm linh hoạt hơn cho tên người
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Lọc nợ (giữ nguyên)
+        if ($request->filled('debt_from')) {
+            $query->where('total_debt', '>=', (float) $request->debt_from);
+        }
+        if ($request->filled('debt_to')) {
+            $query->where('total_debt', '<=', (float) $request->debt_to);
+        }
+
+        // Sắp xếp và phân trang
+        $customers = $query->orderByDesc('total_debt')
+            ->paginate(15)
+            ->withQueryString();
+
         return view('customers.index', compact('customers'), [
             'activeGroup' => 'sales',
             'activeName' => 'customers'
@@ -82,5 +108,10 @@ class CustomerController extends Controller
 
         // 3. Quay lại trang danh sách kèm thông báo
         return redirect()->route('customers.index')->with('msg', 'Cập nhật thông tin khách hàng thành công!');
+    }
+
+    public function searchAjax(Request $request)
+    {
+        return $this->performSelect2Search($request, \App\Models\Customer::class, ['name', 'phone']);
     }
 }

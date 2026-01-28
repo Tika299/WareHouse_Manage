@@ -18,12 +18,47 @@ use Illuminate\Support\Facades\DB;
 
 class ExportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $orders = SalesOrder::with(['customer', 'shippingUnit'])->latest()->paginate(15);
+        $query = SalesOrder::query()->with('customer');
+        // 1. Tìm kiếm theo mã đơn hàng
+        if ($request->filled('order_id')) {
+            $query->where('id', $request->order_id);
+        }
+
+        // 2. Lọc theo khách hàng
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // 3. Lọc theo đơn vị vận chuyển
+        if ($request->filled('shipping_unit_id')) {
+            $query->where('shipping_unit_id', $request->shipping_unit_id);
+        }
+
+        // 4. Lọc theo khoảng ngày tháng
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        // Thực hiện truy vấn và phân trang
+        $orders = $query->latest()->paginate(15);
+        // Giữ lại các tham số lọc khi nhấn sang trang 2, 3...
+        $orders->appends($request->all());
+
+        // Lấy danh sách khách hàng để đổ vào dropdown lọc
+        $selectedCustomer = null;
+        if ($request->filled('customer_id')) {
+            // Tìm khách hàng dựa trên ID từ link URL
+            $selectedCustomer = Customer::find($request->customer_id);
+        }
 
         return view('exports.index', [
             'orders' => $orders,
+            'selectedCustomer' => $selectedCustomer,
             'activeGroup' => 'sales', // Để menu KHO HÀNG sáng lên
             'activeName' => 'orders'    // Để nút Sản phẩm sáng lên
         ]);

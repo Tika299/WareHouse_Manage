@@ -12,6 +12,36 @@
             </a>
         </div>
     </div>
+
+    <!-- BỘ LỌC TÌM KIẾM -->
+    <div class="card-body border-bottom bg-light">
+        <form action="{{ route('internal_exports.index') }}" method="GET">
+            <div class="row">
+                <!-- Tìm mã phiếu -->
+                <div class="col-md-2">
+                    <input type="text" name="search" class="form-control form-control-sm"
+                        placeholder="Mã phiếu (#IE...)" value="{{ request('search') }}">
+                </div>
+
+                <!-- Lọc Ngày -->
+                <div class="col-md-3 d-flex">
+                    <input type="date" name="start_date" class="form-control form-control-sm mr-1" value="{{ request('start_date') }}">
+                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+                </div>
+
+                <!-- Nút bấm -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="fas fa-search"></i> Tìm kiếm
+                    </button>
+                    <a href="{{ route('internal_exports.index') }}" class="btn btn-default btn-sm" title="Xóa lọc">
+                        <i class="fas fa-sync-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="card-body p-0">
         <table class="table table-hover table-striped">
             <thead>
