@@ -11,13 +11,18 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title font-weight-bold">Sản phẩm xuất kho</h3>
                     <!-- Ô TÌM KIẾM NẰM RIÊNG ĐỂ TỐI ƯU -->
-                    <div style="width: 300px;" class="ml-auto">
-                        <x-select2-ajax
-                            name="product_search"
-                            id="product_search"
-                            label=""
-                            :url="route('products.searchAjax')"
-                            placeholder="Gõ tên hoặc mã SKU để thêm..." />
+                    <div style="width: 350px;" class="ml-auto">
+                        <div class="input-group" style="flex-wrap: nowrap;">
+                            <x-select2-ajax
+                                name="product_search"
+                                id="product_search"
+                                label=""
+                                :url="route('products.searchAjax')"
+                                placeholder="Gõ tên hoặc mã SKU để thêm..." />
+                            <button type="button" class="btn btn-success ms-1" data-toggle="modal" data-target="#quickAddProductModal" title="Thêm nhanh sản phẩm mới">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -123,6 +128,52 @@
     </div>
 </form>
 
+<!-- MODAL THÊM NHANH SẢN PHẨM -->
+<div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-box"></i> Thêm nhanh sản phẩm mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quickAddProductForm">
+                @csrf
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mã SKU/Barcode <span class="text-danger">*</span></label>
+                            <input type="text" name="sku" class="form-control" placeholder="Ví dụ: SP001" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" placeholder="Nhập tên sản phẩm..." required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Giá vốn (BQGQ)</label>
+                            <input type="number" name="cost_price" class="form-control" value="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Đơn vị tính</label>
+                            <input type="text" name="unit" class="form-control" value="Cái">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tồn kho ban đầu</label>
+                            <input type="number" name="stock_quantity" class="form-control" value="0">
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2">
+                        <small><i class="fas fa-info-circle"></i> Sản phẩm sau khi tạo sẽ tự động được thêm vào danh sách hàng xuất phía dưới.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success" id="btnSaveQuickProduct">Lưu và Thêm vào đơn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     let rowIdx = 0;
@@ -212,6 +263,87 @@
             $('#total_product_amount').val(totalProd);
             $('#total_final_amount').val(totalFinal);
         }
+
+        // Xử lý submit Form tạo nhanh sản phẩm
+        $('#quickAddProductForm').on('submit', function(e) {
+            e.preventDefault();
+            let btn = $('#btnSaveQuickProduct');
+            btn.prop('disabled', true).text('Đang xử lý...');
+
+            $.ajax({
+                url: "{{ route('products.store') }}", // Dùng chung hàm store của ProductController
+                method: "POST",
+                data: $(this).serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }, // Báo cho Laravel đây là AJAX
+                success: function(response) {
+                    // 1. Đóng modal và reset form
+                    $('#quickAddProductModal').modal('hide');
+                    $('#quickAddProductForm')[0].reset();
+
+                    // 2. Tự động "bắn" sản phẩm mới vào bảng đơn hàng
+                    // Dựa trên dữ liệu mà ProductController trả về
+                    addProductToTable({
+                        id: response.data.id,
+                        sku: response.data.sku,
+                        name: response.data.name,
+                        stock: response.data.stock_quantity,
+                        retail_price: response.data.retail_price // Lấy từ Accessor của Model
+                    });
+
+                    Swal.fire('Thành công', 'Đã tạo sản phẩm và thêm vào đơn!', 'success');
+                },
+                error: function(xhr) {
+                    let error = xhr.responseJSON.message || 'Lỗi: Mã SKU có thể đã tồn tại.';
+                    Swal.fire('Thất bại', error, 'error');
+                },
+                complete: function() {
+                    btn.prop('disabled', false).text('Lưu và Thêm vào đơn');
+                }
+            });
+        });
+
+        // Hàm dùng chung để thêm dòng vào bảng (để tránh lặp code)
+        function addProductToTable(data) {
+            if ($(`#row-${data.id}`).length > 0) {
+                Swal.fire('Thông báo', 'Sản phẩm này đã có trong danh sách!', 'info');
+                return;
+            }
+
+            $('#empty-row').hide();
+
+            let html = `
+        <tr id="row-${data.id}">
+            <td>
+                <b class="text-primary">${data.sku}</b> - ${data.name}
+                <input type="hidden" name="items[${rowIdx}][product_id]" value="${data.id}">
+            </td>
+            <td class="text-center">${data.stock}</td>
+            <td>
+                <input type="number" name="items[${rowIdx}][quantity]" class="form-control form-control-sm qty text-center" value="1" min="1">
+            </td>
+            <td>
+                <input type="number" name="items[${rowIdx}][unit_price]" class="form-control form-control-sm price text-right" value="${data.retail_price}">
+            </td>
+            <td class="text-right subtotal font-weight-bold">0 đ</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger btn-remove"><i class="fas fa-times"></i></button>
+            </td>
+        </tr>
+    `;
+
+            $('#order-body').append(html);
+            rowIdx++;
+            calculateAll();
+        }
+
+        // Cập nhật lại sự kiện select2:select để dùng chung hàm trên
+        $('#product_search').on('select2:select', function(e) {
+            let data = e.params.data;
+            addProductToTable(data);
+            $(this).val(null).trigger('change');
+        });
     });
 </script>
 @endpush

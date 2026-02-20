@@ -65,8 +65,28 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate(['sku' => 'required|unique:products', 'name' => 'required']);
-        Product::create($request->all());
+        $request->validate([
+            'sku' => 'required|unique:products,sku',
+            'name' => 'required'
+        ]);
+
+        $product = \App\Models\Product::create($request->all());
+
+        // Nếu là yêu cầu AJAX (từ trang Đơn hàng)
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $product->id,
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'stock_quantity' => $product->stock_quantity,
+                    'retail_price' => $product->retail_price, // Nhờ Accessor tính hộ
+                ]
+            ]);
+        }
+
+        // Nếu là yêu cầu bình thường (từ trang Sản phẩm)
         return redirect()->route('products.index')->with('msg', 'Thêm sản phẩm thành công!');
     }
 
