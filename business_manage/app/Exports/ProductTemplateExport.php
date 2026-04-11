@@ -17,12 +17,13 @@ class ProductTemplateExport implements WithHeadings, ShouldAutoSize, WithStyles
         return [
             'ma_sku',           // Cột A
             'ten_san_pham',     // Cột B
-            'don_vi_tinh',      // Cột C
-            'gia_von',          // Cột D
-            'muc_cong_le',      // Cột E
-            'muc_cong_si',      // Cột F
-            'ton_kho',          // Cột G
-            'ton_toi_thieu'     // Cột H
+            'mo_ta',            // Cột C
+            'don_vi_tinh',      // Cột D
+            'gia_von',          // Cột E
+            'muc_cong_le',      // Cột F
+            'muc_cong_si',      // Cột G
+            'ton_kho',          // Cột H
+            'ton_toi_thieu'     // Cột I
         ];
     }
 

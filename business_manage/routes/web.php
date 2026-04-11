@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\InternalTransferController;
 use App\Http\Controllers\ProviderController;
 use App\Http\Controllers\CreditLogController;
+use App\Http\Controllers\CustomerReturnController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StockAuditController;
@@ -67,7 +68,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('exports', ExportController::class);
         Route::get('customers/search-ajax', [CustomerController::class, 'searchAjax'])->name('customers.searchAjax');
         Route::resource('customers', CustomerController::class);
-
+        Route::resource('customer_returns', CustomerReturnController::class);
+        Route::get('/returns/search-orders', [CustomerReturnController::class, 'searchOrdersAjax'])->name('customer_returns.searchOrdersAjax');
+        Route::get('/returns/get-order-details/{id}', [CustomerReturnController::class, 'getOrderDetails']);
         Route::resource('shipping_units', ShippingUnitController::class);
         Route::resource('returns', ReturnFormController::class)->names([
             'index'   => 'returnforms.index',

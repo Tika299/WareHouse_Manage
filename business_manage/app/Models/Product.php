@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $fillable = ['sku', 'name', 'unit', 'cost_price', 'factor_retail', 'factor_wholesale', 'factor_ctv', 'factor_eco_margin', 'factor_eco_fee', 'stock_quantity', 'min_stock'];
+    protected $fillable = ['sku', 'name', 'description', 'unit', 'cost_price', 'factor_retail', 'factor_wholesale', 'factor_ctv', 'factor_eco_margin', 'factor_eco_fee', 'stock_quantity', 'min_stock'];
 
     // 1. Giá Lẻ (Vốn * 1.5)
     public function getRetailPriceAttribute()

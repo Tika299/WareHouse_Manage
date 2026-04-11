@@ -21,6 +21,7 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, WithBat
         return new Product([
             'sku'               => $row['ma_sku'] ?? $row['sku'] ?? null,
             'name'              => $row['ten_san_pham'] ?? $row['name'] ?? null,
+            'description'  => $row['mo_ta'] ?? $row['description'] ?? null,
             'unit'              => $row['don_vi_tinh'] ?? $row['unit'] ?? 'cái',
             'cost_price'        => $row['gia_von'] ?? $row['cost_price'] ?? 0,
             'markup_retail'     => $row['muc_cong_le'] ?? $row['markup_retail'] ?? 0,
@@ -35,6 +36,7 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, WithBat
         return [
             'ma_sku' => 'required|unique:products,sku',
             'ten_san_pham' => 'required',
+            'mo_ta' => 'nullable',
             'don_vi_tinh' => 'nullable',
             'gia_von' => 'required|numeric|min:0',
             'muc_cong_le' => 'required|numeric|min:0',

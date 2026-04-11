@@ -28,6 +28,11 @@
                             <input type="text" name="name" class="form-control" value="{{ old('name', $product->name ?? '') }}" required>
                         </div>
 
+                        <div class="form-group">
+                            <label>Mô tả sản phẩm</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Nhập đặc điểm, thông số kỹ thuật...">{{ old('description', $product->description ?? '') }}</textarea>
+                        </div>
+
                         <div class="row">
                             <div class="col-6">
                                 <div class="form-group">

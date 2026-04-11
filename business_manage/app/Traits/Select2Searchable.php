@@ -40,6 +40,7 @@ trait Select2Searchable
                 $response['stock']      = $item->stock_quantity;
                 $response['cost_price'] = $item->cost_price;
                 $response['retail_price'] = $item->retail_price;
+                $response['description'] = $item->description;
             }
             // Nếu là Nhà cung cấp (có phone) thì hiện thêm SĐT cho dễ tìm
             elseif (isset($item->phone)) {

@@ -47,6 +47,7 @@
                 <tr>
                     <th>Mã SKU</th>
                     <th>Tên hàng</th>
+                    <th>Mô tả</th>
                     <th>Tồn kho</th>
                     <th>Giá Vốn</th>
                     <th>Giá Lẻ</th>
@@ -61,6 +62,18 @@
                 <tr>
                     <td class="bg-light"><b>{{ $p->sku }}</b></td>
                     <td>{{ $p->name }}</td>
+                    <td class="description-cell"
+                        data-full-text="{{ $p->description }}"
+                        data-name="{{ $p->name }}"
+                        style="cursor: pointer; max-width: 200px;">
+
+                        <span class="text-info">
+                            {{ Str::limit($p->description, 50, '...') }}
+                        </span>
+                        @if(strlen($p->description) > 50)
+                        <i class="fas fa-search-plus text-muted ml-1" style="font-size: 10px;"></i>
+                        @endif
+                    </td>
                     <td class="{{ $p->stock_quantity < $p->min_stock ? 'text-danger font-weight-bold' : '' }}">
                         {{ $p->stock_quantity }} {{ $p->unit }}
                     </td>
@@ -130,4 +143,53 @@
         </form>
     </div>
 </div>
+
+<!-- MODAL HIỂN THỊ MÔ TẢ CHI TIẾT -->
+<div class="modal fade" id="modalViewDescription" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i> Mô tả sản phẩm: <span id="modal-product-name"></span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="background-color: #fcfcfc;">
+                <!-- Nơi hiện nội dung mô tả -->
+                <div id="modal-full-description" style="white-space: pre-wrap; line-height: 1.6; font-size: 15px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng cửa sổ</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
+
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        // Khi nhấn vào ô mô tả
+        $('.description-cell').on('click', function() {
+            // 1. Lấy dữ liệu từ thuộc tính data-
+            let fullText = $(this).data('full-text');
+            let productName = $(this).data('name');
+
+            // 2. Kiểm tra nếu không có mô tả thì không hiện modal hoặc báo trống
+            if (!fullText || fullText.trim() === "") {
+                Swal.fire('Thông báo', 'Sản phẩm này chưa có mô tả chi tiết.', 'info');
+                return;
+            }
+
+            // 3. Đổ dữ liệu vào Modal
+            $('#modal-product-name').text(productName);
+            $('#modal-full-description').text(fullText);
+
+            // 4. Hiển thị Modal (Sử dụng chuẩn Bootstrap 4 của AdminLTE)
+            $('#modalViewDescription').modal('show');
+        });
+    });
+</script>
+@endpush

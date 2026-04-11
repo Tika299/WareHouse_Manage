@@ -198,6 +198,9 @@
                 <tr id="row-${data.id}">
                     <td>
                         <b class="text-primary">${data.sku}</b> - ${data.name}
+                        <!-- THÊM DÒNG MÔ TẢ Ở ĐÂY -->
+                        ${data.description ? `<br><small class="text-muted"><i>${data.description}</i></small>` : ''}
+                        
                         <input type="hidden" name="items[${rowIdx}][product_id]" value="${data.id}">
                     </td>
                     <td class="text-center">${data.stock}</td>
