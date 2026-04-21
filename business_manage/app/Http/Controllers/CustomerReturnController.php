@@ -34,7 +34,7 @@ class CustomerReturnController extends Controller
             'returns' => $returns,
             'selectedCustomer' => $selectedCustomer,
             'activeGroup' => 'sales',
-            'activeName' => 'returnforms' // Khớp với Header của bạn
+            'activeName' => 'customer_returns' // Khớp với Header của bạn
         ]);
     }
 
@@ -42,7 +42,7 @@ class CustomerReturnController extends Controller
     {
         return view('sales.returns.create', [
             'activeGroup' => 'sales',
-            'activeName' => 'returnforms'
+            'activeName' => 'customer_returns'
         ]);
     }
 

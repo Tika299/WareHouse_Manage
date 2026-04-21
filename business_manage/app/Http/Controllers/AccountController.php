@@ -32,12 +32,21 @@ class AccountController extends Controller
         ]);
 
         // SPEC: current_balance sẽ bằng initial_balance tại thời điểm khởi tạo
-        \App\Models\Account::create([
+        $account = \App\Models\Account::create([
             'name' => $request->name,
             'type' => $request->type,
             'initial_balance' => $request->initial_balance,
             'current_balance' => $request->initial_balance,
         ]);
+
+        // Nếu là yêu cầu AJAX
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $account,
+                'message' => 'Thêm tài khoản thành công!'
+            ]);
+        }
 
         return redirect()->route('accounts.index')->with('msg', 'Đã khởi tạo tài khoản thành công!');
     }

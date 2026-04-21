@@ -32,7 +32,15 @@ class ShippingUnitController extends Controller
             'phone' => 'nullable|string|max:20',
         ]);
 
-        ShippingUnit::create($request->all());
+        $unit = ShippingUnit::create($request->all());
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $unit,
+                'message' => 'Thêm đơn vị vận chuyển thành công!'
+            ]);
+        }
 
         return redirect()->route('shipping-units.index')->with('msg', 'Thêm đơn vị vận chuyển thành công!');
     }
