@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Traits\Select2Searchable;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -17,7 +18,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // Khởi tạo query
-        $query = Product::query();
+        $query = Product::whereNull('parent_id')->with('variants');
 
         //1. Tìm kiếm theo Tên hoặc SKU
         if ($request->filled('search')) {
@@ -58,16 +59,89 @@ class ProductController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('products.create', ['activeGroup' => 'inventory', 'activeName' => 'products']);
+        $parent = null;
+        // Nếu có parent_id trên URL, lấy thông tin cha để khóa tên và ngành hàng
+        if ($request->has('parent_id')) {
+            $parent = Product::findOrFail($request->parent_id);
+        }
+
+        return view('products.create', compact('parent'), [
+            'activeGroup' => 'inventory',
+            'activeName' => 'products'
+        ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate(['sku' => 'required|unique:products', 'name' => 'required']);
-        Product::create($request->all());
-        return redirect()->route('products.index')->with('msg', 'Thêm sản phẩm thành công!');
+        return DB::transaction(function () use ($request) {
+            // Lấy dữ liệu chung (bao gồm product_type của bạn là Mỹ phẩm...)
+            $commonData = $request->only([
+                'name',
+                'unit',
+                'product_type',
+                'description',
+                'factor_retail',
+                'factor_wholesale',
+                'factor_ctv',
+                'factor_eco_margin',
+                'factor_eco_fee'
+            ]);
+
+            if ($request->has('parent_id')) {
+                $parent = Product::findOrFail($request->parent_id);
+
+                Product::create([
+                    'parent_id'     => $parent->id,
+                    'product_type'  => 'variant',
+                    'name'          => $parent->name,
+                    'product_type'  => $parent->product_type,
+                    'variant_label' => $request->variant_label, // Lấy từ ô nhập đơn lẻ
+                    'sku'           => $request->sku,
+                    'cost_price'    => $request->cost_price ?? 0,
+                    'stock_quantity' => $request->stock_quantity ?? 0,
+                    'unit'          => $parent->unit,
+                    'factor_retail' => $parent->factor_retail,
+                    // ... copy các hệ số khác từ cha ...
+                ]);
+                return redirect()->route('products.index')->with('msg', 'Đã thêm biến thể mới!');
+            }
+
+            if ($request->is_variable == "0") {
+                // TẠO SẢN PHẨM ĐƠN LẺ
+                $data = array_merge($commonData, $request->only([
+                    'sku',
+                    'cost_price',
+                    'stock_quantity',
+                    'manual_retail_price',
+                    'manual_wholesale_price',
+                    'manual_ctv_price',
+                    'manual_ecommerce_price'
+                ]));
+                Product::create($data);
+            } else {
+                // TẠO SẢN PHẨM CHA VÀ CÁC BIẾN THỂ CON
+                $parent = Product::create(array_merge($commonData, ['sku' => 'P-' . time()]));
+
+                if ($request->has('variants')) {
+                    foreach ($request->variants as $v) {
+                        Product::create(array_merge($commonData, [
+                            'parent_id'     => $parent->id,
+                            'variant_label' => $v['variant_label'],
+                            'sku'           => $v['sku'],
+                            'cost_price'    => $v['cost_price'] ?? 0,
+                            'stock_quantity' => $v['stock_quantity'] ?? 0,
+                            'manual_retail_price'    => $v['manual_retail_price'],
+                            'manual_wholesale_price' => $v['manual_wholesale_price'],
+                            'manual_ctv_price'       => $v['manual_ctv_price'],
+                            'manual_ecommerce_price' => $v['manual_ecommerce_price'],
+                        ]));
+                    }
+                }
+            }
+            return redirect()->route('products.index')->with('msg', 'Đã lưu sản phẩm!');
+        });
     }
 
     public function edit(Product $product)
@@ -77,8 +151,37 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $product->update($request->all());
-        return redirect()->route('products.index')->with('msg', 'Cập nhật thành công!');
+        return DB::transaction(function () use ($request, $product) {
+            // 1. Cập nhật thông tin sản phẩm chính (Cha)
+            $product->update($request->only(['name', 'product_type', 'description', 'factor_retail', 'factor_wholesale', 'factor_ctv', 'factor_eco_margin', 'factor_eco_fee']));
+
+            // 2. Cập nhật các biến thể cũ (Nếu form gửi mảng variants[id][...])
+            if ($request->has('variants')) {
+                foreach ($request->variants as $id => $vData) {
+                    $variant = Product::findOrFail($id);
+                    $variant->update($vData);
+                }
+            }
+
+            // 3. Tạo các biến thể MỚI (Nếu có dùng nút "Thêm dòng" trong trang Edit)
+            if ($request->has('new_variants')) {
+                foreach ($request->new_variants as $nv) {
+                    Product::create(array_merge($nv, [
+                        'parent_id' => $product->id,
+                        'product_type' => 'variant',
+                        'name' => $product->name,
+                        'unit' => $product->unit,
+                        'factor_retail' => $product->factor_retail,
+                        'factor_wholesale' => $product->factor_wholesale,
+                        'factor_ctv' => $product->factor_ctv,
+                        'factor_eco_margin' => $product->factor_eco_margin,
+                        'factor_eco_fee' => $product->factor_eco_fee,
+                    ]));
+                }
+            }
+
+            return redirect()->route('products.index')->with('msg', 'Cập nhật sản phẩm và biến thể thành công!');
+        });
     }
 
     public function destroy(Product $product)

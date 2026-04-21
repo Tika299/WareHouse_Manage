@@ -58,7 +58,15 @@ class CustomerController extends Controller
             'phone' => 'required|max:20',
         ]);
 
-        Customer::create($request->all());
+        $customer =Customer::create($request->all());
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $customer,
+                'message' => 'Thêm khách hàng thành công!'
+            ]);
+        }
         return redirect()->route('customers.index')->with('msg', 'Thêm khách hàng thành công!');
     }
 

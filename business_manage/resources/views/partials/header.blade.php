@@ -95,9 +95,6 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                                 <li><a href="{{ route('audits.index') }}" class="dropdown-item">Kiểm kê kho</a></li>
                                 <li><a href="{{ route('internal_exports.index') }}" class="dropdown-item">Xuất kho nội bộ</a></li>
                                 <li><a href="{{ route('pricing.index') }}" class="dropdown-item">Chính sách giá</a></li>
-                                @if($isAdmin)
-                                <li><a href="{{ route('warehouses.index') }}" class="dropdown-item">Cấu hình kho</a></li>
-                                @endif
                             </ul>
                         </li>
 
@@ -109,6 +106,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                                 <li><a href="{{ route('customers.index') }}" class="dropdown-item">Khách hàng & Công nợ</a></li>
                                 <li><a href="{{ route('returnforms.index') }}" class="dropdown-item">Đổi trả hàng (Barter)</a></li>
                                 <li><a href="{{ route('shipping_units.index') }}" class="dropdown-item">Đơn vị vận chuyển</a></li>
+                                <li><a href="{{ route('customer_returns.index') }}" class="dropdown-item">Phiếu khách trả hàng</a></li>
                             </ul>
                         </li>
 
@@ -179,7 +177,9 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                 @if($activeGroup == 'sales')
                 <a href="{{ route('exports.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'orders' ? 'active' : '' }}">Đơn hàng</button></a>
                 <a href="{{ route('customers.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'customers' ? 'active' : '' }}">Khách hàng</button></a>
+                <a href="{{ route('returnforms.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'returnforms' ? 'active' : '' }}">Đổi hàng</button></a>
                 <a href="{{ route('shipping_units.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'shipping' ? 'active' : '' }}">Vận chuyển</button></a>
+                <a href="{{ route('customer_returns.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'customer_returns' ? 'active' : '' }}">Khách trả hàng</button></a>
                 @endif
 
                 @if($activeGroup == 'finance')

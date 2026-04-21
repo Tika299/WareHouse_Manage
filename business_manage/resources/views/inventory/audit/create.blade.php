@@ -1,9 +1,11 @@
 @extends('layouts.app')
 
+@section('title', 'Lập phiếu kiểm kê kho')
+
 @section('content')
-<div class="card card-dark">
+<div class="card card-dark shadow">
     <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-clipboard-check"></i> Lập Phiếu Kiểm Kê Kho</h3>
+        <h3 class="card-title font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>LẬP PHIẾU KIỂM KÊ KHO</h3>
     </div>
     <form action="{{ route('audits.store') }}" method="POST" id="auditForm">
         @csrf
@@ -12,47 +14,56 @@
                 <div class="col-md-8">
                     <div class="form-group">
                         <label>Ghi chú kiểm kho</label>
-                        <input type="text" name="note" class="form-control" placeholder="Ví dụ: Kiểm kê định kỳ tháng 12">
+                        <input type="text" name="note" class="form-control" placeholder="Ví dụ: Kiểm kê định kỳ kho tháng 04/2026">
                     </div>
                 </div>
-                <!-- Ô TÌM KIẾM SẢN PHẨM (Component tự động init Select2) -->
+                <!-- Ô TÌM KIẾM SẢN PHẨM -->
                 <div class="col-md-4">
-                    <x-select2-ajax
-                        name="search_product"
-                        id="search_product" {{-- ID này sẽ được dùng trong Script --}}
-                        label="Tìm sản phẩm kiểm kê"
-                        :url="route('products.searchAjax')"
-                        placeholder="Gõ tên hoặc mã SKU..." />
+                    <div class="form-group">
+                        <label class="text-primary">Tìm sản phẩm kiểm kê</label>
+                        <x-select2-ajax
+                            name="search_product_audit"
+                            id="search_product_audit"
+                            label=""
+                            :url="route('audits.searchProducts')"
+                            placeholder="Gõ tên, mã SKU hoặc biến thể..." />
+                    </div>
                 </div>
             </div>
 
-            <table class="table table-bordered table-striped mt-3" id="auditTable">
-                <thead class="bg-light">
-                    <tr>
-                        <th>Sản phẩm</th>
-                        <th width="150" class="text-center">Tồn hệ thống</th>
-                        <th width="180" class="text-center">Tồn thực tế</th>
-                        <th width="120" class="text-center">Chênh lệch</th>
-                        <th width="200" class="text-right">Giá trị lệch (Vốn)</th>
-                        <th width="50" class="text-center">#</th>
-                    </tr>
-                </thead>
-                <tbody id="auditBody">
-                    <tr id="empty-row">
-                        <td colspan="6" class="text-center p-4 text-muted">Chưa có sản phẩm nào được chọn. Vui lòng tìm ở ô phía trên.</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped mt-2" id="auditTable">
+                    <thead class="bg-light text-12 text-uppercase">
+                        <tr>
+                            <th>Sản phẩm / SKU</th>
+                            <th width="150" class="text-center">Tồn hệ thống</th>
+                            <th width="180" class="text-center">Tồn thực tế</th>
+                            <th width="120" class="text-center">Chênh lệch</th>
+                            <th width="200" class="text-right">Giá trị lệch (Vốn)</th>
+                            <th width="50" class="text-center">#</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditBody">
+                        <tr id="empty-row">
+                            <td colspan="6" class="text-center p-5 text-muted">
+                                <i class="fas fa-search mr-2"></i>Chưa có sản phẩm nào được chọn. Vui lòng tìm ở ô phía trên.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="card-footer">
+        <div class="card-footer bg-white border-top">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h5 class="m-0">Tổng giá trị chênh lệch: <span id="total-diff-display" class="text-bold">0 đ</span></h5>
+                    <h5 class="m-0">TỔNG GIÁ TRỊ CHÊNH LỆCH: <span id="total-diff-display" class="text-bold text-lg">0 đ</span></h5>
+                    <small class="text-muted italic">* Giá trị lệch = (Tồn thực tế - Tồn hệ thống) x Giá vốn BQGQ</small>
                 </div>
                 <div class="col-md-4 text-right">
-                    <button type="submit" class="btn btn-dark btn-lg px-5 font-weight-bold">
-                        <i class="fas fa-save"></i> XÁC NHẬN ĐIỀU CHỈNH KHO
+                    <a href="{{ route('audits.index') }}" class="btn btn-default mr-2">Hủy bỏ</a>
+                    <button type="submit" class="btn btn-dark btn-lg px-5 font-weight-bold shadow">
+                        <i class="fas fa-save mr-2"></i> XÁC NHẬN ĐIỀU CHỈNH
                     </button>
                 </div>
             </div>
@@ -65,45 +76,41 @@
     let rowIdx = 0;
 
     $(document).ready(function() {
-        /**
-         * Lắng nghe sự kiện SELECT từ component (ID: #search_product)
-         * Không cần chạy lệnh .select2() nữa vì component đã làm rồi.
-         */
-        $('#search_product').on('select2:select', function(e) {
-            let data = e.params.data; // Dữ liệu từ Trait Select2Searchable trả về
+        // 1. Lắng nghe sự kiện chọn sản phẩm từ Component
+        $('#search_product_audit').on('select2:select', function(e) {
+            let data = e.params.data;
 
-            // 1. Kiểm tra trùng sản phẩm
+            // Kiểm tra trùng sản phẩm trong bảng
             if ($(`#row-${data.id}`).length > 0) {
                 Swal.fire('Thông báo', 'Sản phẩm này đã có trong danh sách kiểm kê!', 'info');
                 $(this).val(null).trigger('change');
                 return;
             }
 
-            // 2. Ẩn dòng thông báo "Trống"
+            // Ẩn dòng "Trống"
             $('#empty-row').hide();
 
-            // 3. Render dòng mới
-            // Lưu ý: data.stock và data.cost_price lấy từ mảng map() trong Trait
+            // Thêm dòng mới vào bảng
             let html = `
                 <tr id="row-${data.id}">
                     <td>
                         <b class="text-primary">${data.sku}</b> - ${data.name}
                         <input type="hidden" name="items[${rowIdx}][product_id]" value="${data.id}">
                     </td>
-                    <td class="text-center system-qty">${data.stock}</td>
+                    <td class="text-center text-bold system-qty">${data.stock}</td>
                     <td>
                         <input type="number"
                                name="items[${rowIdx}][actual_qty]"
-                               class="form-control actual-qty text-center"
+                               class="form-control actual-qty text-center font-weight-bold"
                                value="${data.stock}"
                                data-cost="${data.cost_price}"
                                required>
                     </td>
-                    <td class="text-center diff-qty">0</td>
-                    <td class="text-right diff-value">0 đ</td>
+                    <td class="text-center text-bold diff-qty">0</td>
+                    <td class="text-right text-bold diff-value">0 đ</td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger btn-remove">
-                            <i class="fas fa-times"></i>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-remove">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 </tr>
@@ -112,29 +119,22 @@
             $('#auditBody').append(html);
             rowIdx++;
 
-            // 4. Reset ô tìm kiếm về trạng thái trống
+            // Reset ô tìm kiếm
             $(this).val(null).trigger('change');
 
             calculateTotal();
         });
 
-        // ===============================
-        // XÓA DÒNG
-        // ===============================
+        // 2. Xử lý nút Xóa dòng
         $(document).on('click', '.btn-remove', function() {
             $(this).closest('tr').remove();
-            // Nếu không còn dòng nào thì hiện lại thông báo trống
-            if ($('#auditBody tr').length === 1 && $('#empty-row').length > 0) {
-                $('#empty-row').show();
-            } else if ($('#auditBody tr').not('#empty-row').length === 0) {
+            if ($('#auditBody tr:visible').not('#empty-row').length === 0) {
                 $('#empty-row').show();
             }
             calculateTotal();
         });
 
-        // ===============================
-        // TÍNH TOÁN KHI NHẬP SỐ LƯỢNG THỰC TẾ
-        // ===============================
+        // 3. Tính toán Real-time khi nhập Tồn thực tế
         $(document).on('input', '.actual-qty', function() {
             let tr = $(this).closest('tr');
             let systemQty = parseInt(tr.find('.system-qty').text()) || 0;
@@ -144,22 +144,20 @@
             let diff = actualQty - systemQty;
             let diffValue = diff * costPrice;
 
-            // Hiển thị chênh lệch (màu sắc)
-            tr.find('.diff-qty')
-                .text(diff)
-                .removeClass('text-danger text-success')
-                .addClass(diff < 0 ? 'text-danger' : (diff > 0 ? 'text-success' : ''));
+            // Cập nhật hiển thị Chênh lệch (Số lượng)
+            let diffCell = tr.find('.diff-qty');
+            diffCell.text(diff > 0 ? '+' + diff : diff);
+            diffCell.removeClass('text-danger text-success');
+            if(diff < 0) diffCell.addClass('text-danger');
+            if(diff > 0) diffCell.addClass('text-success');
 
-            // Hiển thị giá trị lệch
-            tr.find('.diff-value')
-                .text(new Intl.NumberFormat('vi-VN').format(diffValue) + ' đ');
+            // Cập nhật hiển thị Giá trị lệch (Tiền)
+            tr.find('.diff-value').text(new Intl.NumberFormat('vi-VN').format(diffValue) + ' đ');
 
             calculateTotal();
         });
 
-        // ===============================
-        // TÍNH TỔNG PHIẾU
-        // ===============================
+        // 4. Hàm tính tổng toàn phiếu
         function calculateTotal() {
             let totalValue = 0;
 
@@ -172,13 +170,21 @@
                 totalValue += (actualQty - systemQty) * costPrice;
             });
 
-            let color = totalValue < 0 ? 'text-danger' : (totalValue > 0 ? 'text-success' : '');
-            $('#total-diff-display')
-                .text(new Intl.NumberFormat('vi-VN').format(totalValue) + ' đ')
-                .removeClass('text-danger text-success')
-                .addClass(color);
+            let display = $('#total-diff-display');
+            display.text(new Intl.NumberFormat('vi-VN').format(totalValue) + ' đ');
+            
+            display.removeClass('text-danger text-success');
+            if (totalValue < 0) display.addClass('text-danger');
+            if (totalValue > 0) display.addClass('text-success');
         }
     });
 </script>
 @endpush
+
+<style>
+    .text-12 { font-size: 12px; }
+    .italic { font-style: italic; }
+    #auditTable input.actual-qty { border: 1px solid #6c757d; }
+    #auditTable input.actual-qty:focus { border-color: #343a40; box-shadow: none; }
+</style>
 @endsection

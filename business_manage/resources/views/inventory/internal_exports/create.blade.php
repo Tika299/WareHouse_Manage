@@ -30,12 +30,17 @@
                 </div>
                 <!-- Ô TÌM KIẾM SẢN PHẨM (Component tự động init Select2) -->
                 <div class="col-md-4">
-                    <x-select2-ajax
-                        name="search_product"
-                        id="search_product" {{-- ID này sẽ được dùng trong Script --}}
-                        label="Tìm sản phẩm kiểm kê"
-                        :url="route('products.searchAjax')"
-                        placeholder="Gõ tên hoặc mã SKU..." />
+                    <label for="">Tìm sản phẩm kiểm kê</label>
+                    <div class="input-group" style="flex-wrap: nowrap;">
+                        <x-select2-ajax
+                            name="search_product"
+                            id="search_product" {{-- ID này sẽ được dùng trong Script --}}
+                            :url="route('products.searchAjax')"
+                            placeholder="Gõ tên hoặc mã SKU..." />
+                        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#quickAddProductModal">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -63,6 +68,8 @@
         </div>
     </form>
 </div>
+
+<x-modal-quick-add-product />
 
 @push('scripts')
 

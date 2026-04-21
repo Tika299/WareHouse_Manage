@@ -89,33 +89,21 @@ class ImportController extends Controller
             foreach ($request->items as $item) {
                 $product = Product::lockForUpdate()->find($item['product_id']);
 
-                // 2. Phân bổ chi phí phát sinh (Extra Cost) vào giá nhập
-                // Tỷ lệ = Giá trị dòng hàng / Tổng tiền hàng gốc
+                // Tính giá nhập thực tế sau phân bổ phí ship (giữ nguyên logic cũ)
                 $ratio = ($item['quantity'] * $item['import_price']) / $request->total_product_value;
-                $allocated = (($ratio * $request->extra_cost) / $item['quantity']) ?? 0;
+                $allocated = ($ratio * $request->extra_cost) / $item['quantity'];
                 $final_unit_cost = $item['import_price'] + $allocated;
 
-                // 3. Tính Giá Vốn Bình Quân Gia Quyền (BQGQ)
-                // (Tồn cũ * Giá vốn cũ + Nhập mới * Giá nhập thực tế) / Tổng tồn mới
-                $old_total_value = $product->stock_quantity * $product->cost_price;
-                $new_total_value = $item['quantity'] * $final_unit_cost;
+                // Tính BQGQ cho BIẾN THỂ này
+                $old_value = $product->stock_quantity * $product->cost_price;
+                $new_value = $item['quantity'] * $final_unit_cost;
                 $new_qty = $product->stock_quantity + $item['quantity'];
-                $new_cost_price = ($old_total_value + $new_total_value) / $new_qty;
+                $new_cost_price = ($old_value + $new_value) / $new_qty;
 
-                // 4. Lưu chi tiết phiếu nhập
-                PurchaseDetail::create([
-                    'purchase_order_id' => $order->id,
-                    'product_id' => $product->id,
-                    'quantity' => $item['quantity'],
-                    'import_price' => $item['import_price'],
-                    'allocated_cost' => $allocated,
-                    'final_unit_cost' => $final_unit_cost,
-                ]);
-
-                // 5. Cập nhật Sản phẩm & Thẻ kho
                 $product->update([
                     'cost_price' => $new_cost_price,
                     'stock_quantity' => $new_qty,
+                    // Lưu ý: Tuyệt đối không cập nhật giá vốn của sản phẩm CHA
                 ]);
 
                 StockLog::create([
