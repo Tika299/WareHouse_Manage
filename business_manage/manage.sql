@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th4 20, 2026 lúc 10:39 AM
+-- Thời gian đã tạo: Th4 22, 2026 lúc 03:34 PM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -39,13 +39,18 @@ CREATE TABLE `accounts` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
 --
--- Đang đổ dữ liệu cho bảng `accounts`
+-- Cấu trúc bảng cho bảng `brands`
 --
 
-INSERT INTO `accounts` (`id`, `name`, `type`, `initial_balance`, `current_balance`, `created_at`, `updated_at`) VALUES
-(15, 'Tiền Mặt', 'cash', 500000.00, 500000.00, '2026-04-14 23:56:20', '2026-04-14 23:56:20'),
-(16, 'VietcomBank', 'bank', 200000.00, 200000.00, '2026-04-15 00:24:31', '2026-04-15 00:24:31');
+CREATE TABLE `brands` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -93,6 +98,34 @@ CREATE TABLE `cash_vouchers` (
 -- --------------------------------------------------------
 
 --
+-- Cấu trúc bảng cho bảng `categories`
+--
+
+CREATE TABLE `categories` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `combo_items`
+--
+
+CREATE TABLE `combo_items` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `combo_id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Cấu trúc bảng cho bảng `credit_logs`
 --
 
@@ -124,13 +157,6 @@ CREATE TABLE `customers` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Đang đổ dữ liệu cho bảng `customers`
---
-
-INSERT INTO `customers` (`id`, `name`, `phone`, `address`, `total_debt`, `created_at`, `updated_at`) VALUES
-(11, 'Xuân Vũ Lê', '0837960247', NULL, 0.00, '2026-04-15 00:16:36', '2026-04-15 00:16:36');
 
 -- --------------------------------------------------------
 
@@ -307,7 +333,13 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (24, '2026_04_11_094757_add_description_to_products_table', 7),
 (25, '2026_04_11_110023_add_manual_prices_to_products_table', 8),
 (26, '2026_04_17_104826_add_variants_to_products_table', 9),
-(27, '2026_04_20_041852_add_attributes_json_to_products_table', 10);
+(27, '2026_04_20_041852_add_attributes_json_to_products_table', 10),
+(28, '2026_04_22_043626_create_categories_table', 11),
+(29, '2026_04_22_043630_create_brands_table', 12),
+(30, '2026_04_22_043627', 13),
+(31, '2026_04_22_073333_cleanup_products_table', 14),
+(32, '2026_04_22_094216_create_combo_items_table', 15),
+(33, '2026_04_22_094313_add_is_combo_to_products_table', 16);
 
 -- --------------------------------------------------------
 
@@ -336,29 +368,29 @@ INSERT INTO `password_reset_tokens` (`email`, `token`, `created_at`) VALUES
 
 CREATE TABLE `products` (
   `id` bigint(20) UNSIGNED NOT NULL,
+  `is_combo` tinyint(1) NOT NULL DEFAULT 0,
   `parent_id` bigint(20) UNSIGNED DEFAULT NULL,
   `sku` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `variant_label` varchar(255) DEFAULT NULL,
-  `attributes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`attributes`)),
-  `product_type` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
-  `brand` varchar(255) DEFAULT NULL,
   `unit` varchar(255) DEFAULT NULL,
-  `cost_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `cost_price` decimal(15,2) UNSIGNED NOT NULL DEFAULT 0.00,
   `factor_retail` decimal(5,2) NOT NULL DEFAULT 1.50,
   `factor_wholesale` decimal(5,2) NOT NULL DEFAULT 1.10,
   `factor_ctv` decimal(5,2) NOT NULL DEFAULT 1.20,
   `factor_eco_margin` decimal(5,2) NOT NULL DEFAULT 0.50,
   `factor_eco_fee` decimal(5,2) NOT NULL DEFAULT 0.30,
-  `stock_quantity` int(11) NOT NULL DEFAULT 0,
-  `min_stock` int(11) NOT NULL DEFAULT 5,
+  `stock_quantity` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `min_stock` int(10) UNSIGNED NOT NULL DEFAULT 5,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `manual_retail_price` decimal(15,2) DEFAULT NULL,
   `manual_wholesale_price` decimal(15,2) DEFAULT NULL,
   `manual_ctv_price` decimal(15,2) DEFAULT NULL,
-  `manual_ecommerce_price` decimal(15,2) DEFAULT NULL
+  `manual_ecommerce_price` decimal(15,2) DEFAULT NULL,
+  `category_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `brand_id` bigint(20) UNSIGNED DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -455,7 +487,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('mtjWT7yAinGKYmm6az4bAXj1x3nxold3BYMlJQw2', 1, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiVkI4Y3dhcDJ5TXNIbkNPcW5JM0FUNGltZ3NWRmYwQ1BHQWd5NlZYMCI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NDA6Imh0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9pbnZlbnRvcnkvcHJvZHVjdHMiO3M6NToicm91dGUiO3M6MTQ6InByb2R1Y3RzLmluZGV4Ijt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MTt9', 1776673576);
+('Lm42Ul613tX6ZczFS6cpgtNLIa5suoS4Ev3aPJJn', 1, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoicEMxdVV1N25BQ0M4YXJYRVV3cVF6dXcwNkRHSlQ2SXNTcmZsTnlsaSI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjQwOiJodHRwOi8vbG9jYWxob3N0OjgwMDAvaW52ZW50b3J5L3Byb2R1Y3RzIjtzOjU6InJvdXRlIjtzOjE0OiJwcm9kdWN0cy5pbmRleCI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjE7fQ==', 1776864219);
 
 -- --------------------------------------------------------
 
@@ -556,13 +588,6 @@ CREATE TABLE `suppliers` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Đang đổ dữ liệu cho bảng `suppliers`
---
-
-INSERT INTO `suppliers` (`id`, `name`, `phone`, `address`, `total_debt`, `created_at`, `updated_at`) VALUES
-(5, 'Xuân Vũ Lê', '0837960247', NULL, 0.00, '2026-04-14 19:15:21', '2026-04-14 19:15:21');
-
 -- --------------------------------------------------------
 
 --
@@ -599,6 +624,13 @@ ALTER TABLE `accounts`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Chỉ mục cho bảng `brands`
+--
+ALTER TABLE `brands`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `brands_name_unique` (`name`);
+
+--
 -- Chỉ mục cho bảng `cache`
 --
 ALTER TABLE `cache`
@@ -616,6 +648,21 @@ ALTER TABLE `cache_locks`
 ALTER TABLE `cash_vouchers`
   ADD PRIMARY KEY (`id`),
   ADD KEY `cash_vouchers_account_id_foreign` (`account_id`);
+
+--
+-- Chỉ mục cho bảng `categories`
+--
+ALTER TABLE `categories`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `categories_name_unique` (`name`);
+
+--
+-- Chỉ mục cho bảng `combo_items`
+--
+ALTER TABLE `combo_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `combo_items_combo_id_foreign` (`combo_id`),
+  ADD KEY `combo_items_product_id_foreign` (`product_id`);
 
 --
 -- Chỉ mục cho bảng `credit_logs`
@@ -711,7 +758,8 @@ ALTER TABLE `password_reset_tokens`
 ALTER TABLE `products`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `products_sku_unique` (`sku`),
-  ADD KEY `products_parent_id_foreign` (`parent_id`);
+  ADD KEY `products_parent_id_foreign` (`parent_id`),
+  ADD KEY `products_category_id_foreign` (`category_id`);
 
 --
 -- Chỉ mục cho bảng `purchase_details`
@@ -806,34 +854,52 @@ ALTER TABLE `accounts`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
+-- AUTO_INCREMENT cho bảng `brands`
+--
+ALTER TABLE `brands`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+
+--
 -- AUTO_INCREMENT cho bảng `cash_vouchers`
 --
 ALTER TABLE `cash_vouchers`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
+-- AUTO_INCREMENT cho bảng `categories`
+--
+ALTER TABLE `categories`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT cho bảng `combo_items`
+--
+ALTER TABLE `combo_items`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
 -- AUTO_INCREMENT cho bảng `credit_logs`
 --
 ALTER TABLE `credit_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT cho bảng `customers`
 --
 ALTER TABLE `customers`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT cho bảng `customer_returns`
 --
 ALTER TABLE `customer_returns`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT cho bảng `customer_return_details`
 --
 ALTER TABLE `customer_return_details`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT cho bảng `failed_jobs`
@@ -869,13 +935,13 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT cho bảng `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT cho bảng `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=484;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=367;
 
 --
 -- AUTO_INCREMENT cho bảng `purchase_details`
@@ -893,13 +959,13 @@ ALTER TABLE `purchase_orders`
 -- AUTO_INCREMENT cho bảng `sales_details`
 --
 ALTER TABLE `sales_details`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT cho bảng `sales_orders`
 --
 ALTER TABLE `sales_orders`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT cho bảng `shipping_units`
@@ -911,19 +977,19 @@ ALTER TABLE `shipping_units`
 -- AUTO_INCREMENT cho bảng `stock_audits`
 --
 ALTER TABLE `stock_audits`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `stock_audit_details`
 --
 ALTER TABLE `stock_audit_details`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT cho bảng `stock_logs`
 --
 ALTER TABLE `stock_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
 
 --
 -- AUTO_INCREMENT cho bảng `suppliers`
@@ -946,6 +1012,13 @@ ALTER TABLE `users`
 --
 ALTER TABLE `cash_vouchers`
   ADD CONSTRAINT `cash_vouchers_account_id_foreign` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`);
+
+--
+-- Các ràng buộc cho bảng `combo_items`
+--
+ALTER TABLE `combo_items`
+  ADD CONSTRAINT `combo_items_combo_id_foreign` FOREIGN KEY (`combo_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `combo_items_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `customer_returns`
@@ -986,6 +1059,7 @@ ALTER TABLE `internal_transfers`
 -- Các ràng buộc cho bảng `products`
 --
 ALTER TABLE `products`
+  ADD CONSTRAINT `products_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `products_parent_id_foreign` FOREIGN KEY (`parent_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
 
 --

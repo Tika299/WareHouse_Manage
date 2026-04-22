@@ -1,248 +1,190 @@
 @extends('layouts.app')
-
 @section('title', 'Quản lý Sản phẩm')
-
 @section('content')
 <div class="card shadow-sm border-0">
-    <div class="card-header bg-white py-3">
-        <div class="row align-items-center">
-            <div class="col">
-                <h3 class="card-title font-weight-bold text-uppercase text-primary">
-                    <i class="fas fa-boxes mr-2"></i>Danh mục Hàng hóa
-                </h3>
-            </div>
-            <div class="col-auto">
-                <a href="{{ route('products.create') }}" class="btn btn-primary btn-sm shadow-sm">
-                    <i class="fas fa-plus"></i> Thêm sản phẩm
-                </a>
-                <button type="button" class="btn btn-success btn-sm ml-2 shadow-sm" data-toggle="modal" data-target="#importModal">
-                    <i class="fas fa-file-excel"></i> Import Excel
-                </button>
+    <div class="card-header bg-white py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="card-title font-weight-bold text-primary"><i class="fas fa-boxes mr-2"></i>QUẢN LÝ SẢN PHẨM</h3>
+            <div>
+                <a href="{{ route('products.create') }}" class="btn btn-primary btn-sm shadow-sm"><i class="fas fa-plus"></i> Thêm mới</a>
+                <button class="btn btn-success btn-sm ml-1 shadow-sm" data-toggle="modal" data-target="#importModal"><i class="fas fa-file-excel"></i> Import</button>
+                <a href="{{route('products.create_combo')}}" class="btn btn-info btn-sm ml-1 shadow-sm"><i class="fas fa-box-open"></i> Tạo Combo</a>
             </div>
         </div>
     </div>
 
     <!-- BỘ LỌC TÌM KIẾM -->
-    <div class="card-body border-bottom bg-light">
-        <form action="{{ route('products.index') }}" method="GET">
-            <div class="row align-items-end">
-                <div class="col-md-4">
-                    <label class="small font-weight-bold">Tìm kiếm</label>
-                    <div class="input-group input-group-sm">
-                        <input type="text" name="search" class="form-control" placeholder="Tên sản phẩm hoặc mã SKU..." value="{{ request('search') }}">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <label class="small font-weight-bold">Trạng thái kho</label>
-                    <select name="stock_status" class="form-control form-control-sm">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <option value="in_stock" {{ request('stock_status') == 'in_stock' ? 'selected' : '' }}>Còn hàng (An toàn)</option>
-                        <option value="low_stock" {{ request('stock_status') == 'low_stock' ? 'selected' : '' }}>Sắp hết hàng (Cảnh báo)</option>
-                        <option value="out_of_stock" {{ request('stock_status') == 'out_of_stock' ? 'selected' : '' }}>Đã hết hàng</option>
-                    </select>
-                </div>
-                <div class="col-md-5">
-                    <button type="submit" class="btn btn-info btn-sm px-4 shadow-sm">Lọc dữ liệu</button>
-                    <a href="{{ route('products.index') }}" class="btn btn-default btn-sm ml-1 border shadow-sm">Làm mới</a>
-                </div>
+    <div class="card-body border-bottom bg-light py-2">
+        <form action="{{ route('products.index') }}" method="GET" class="row gx-2 align-items-center">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Tìm tên hoặc SKU..." value="{{ request('search') }}">
+            </div>
+            <div class="col-md-2">
+                <select name="category_id" class="form-control form-control-sm" onchange="this.form.submit()">
+                    <option value="">-- Ngành hàng --</option>
+                    @foreach($categories as $cat)
+                    <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="brand_id" class="form-control form-control-sm" onchange="this.form.submit()">
+                    <option value="">-- Thương hiệu --</option>
+                    @foreach($brands as $br)
+                    <option value="{{ $br->id }}" {{ request('brand_id') == $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="stock_status" class="form-control form-control-sm" onchange="this.form.submit()">
+                    <option value="">-- Kho hàng --</option>
+                    <option value="in_stock" {{ request('stock_status') == 'in_stock' ? 'selected' : '' }}>Còn hàng</option>
+                    <option value="low_stock" {{ request('stock_status') == 'low_stock' ? 'selected' : '' }}>Sắp hết</option>
+                    <option value="out_of_stock" {{ request('stock_status') == 'out_of_stock' ? 'selected' : '' }}>Hết hàng</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-info btn-sm px-3">Lọc</button>
+                <a href="{{ route('products.index') }}" class="btn btn-default btn-sm border">Làm mới</a>
             </div>
         </form>
     </div>
 
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="bg-gray-light text-12 text-uppercase">
-                    <tr>
-                        <th width="320" class="pl-4">Sản phẩm / SKU</th>
-                        <th class="text-center">Ngành hàng</th>
-                        <th width="80" class="text-center">Tồn</th>
-                        <th width="110" class="text-right">Giá Vốn</th>
-                        <th width="110" class="text-right text-primary">Giá Lẻ</th>
-                        <th width="110" class="text-right text-success">Giá Sỉ</th>
-                        <th width="110" class="text-right text-info">Giá CTV</th>
-                        <th width="110" class="text-right text-orange">Giá Sàn</th>
-                        <th width="120" class="text-center">Thao tác</th>
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr class="bg-gray-light text-muted text-12 text-uppercase">
+                        <th class="pl-3" style="width: 25%">Sản phẩm / SKU</th>
+                        <th class="text-center">Ngành / Hiệu</th>
+                        <th class="text-center">Tồn</th>
+                        <th class="text-right text-primary">Giá Lẻ</th>
+                        <th class="text-right text-success">Giá Sỉ</th>
+                        <th class="text-right text-orange">Giá Sàn</th>
+                        <th class="text-center">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody class="text-13">
                     @forelse($products as $p)
-                    @php
-                    $hasVariants = $p->variants->isNotEmpty();
-                    @endphp
-                    {{-- HÀNG CHÍNH (SẢN PHẨM CHA HOẶC SẢN PHẨM ĐƠN LẺ) --}}
-                    <tr class="{{ $hasVariants ? 'bg-parent font-weight-bold' : '' }}">
-                        <td class="pl-4">
+                    @php $isVar = $p->variants->count() > 0; @endphp
+                    <tr class="{{ $isVar ? 'bg-parent-row' : '' }}">
+                        <td class="pl-3">
                             <div class="d-flex align-items-center">
-                                @if($hasVariants)
-                                <button class="btn btn-xs btn-outline-secondary mr-2 btn-toggle-variants" data-target=".child-of-{{ $p->id }}">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
+                                @if($isVar)
+                                <span class="btn-toggle-row mr-2" data-target=".child-of-{{ $p->id }}" style="cursor:pointer"><i class="fas fa-angle-double-right text-primary"></i></span>
+                                <span class="badge badge-secondary mr-2">CHA</span>
                                 @else
-                                <span class="badge badge-info mr-2 shadow-sm"></span>
+                                <span class="mr-2" style="width: 15px; display: inline-block;"></span>
+                                <span class="badge badge-info mr-2">ĐƠN</span>
                                 @endif
                                 <div>
-                                    <span>{{ $p->name }}</span><br>
-                                    <small class="text-muted">{{ $p->sku }}</small>
+                                    @if($p->brand)
+                                    <small class="text-primary font-weight-bold uppercase" style="font-size: 9px; display: block; margin-bottom: -3px;">
+                                        {{ $p->brand->name }}
+                                    </small>
+                                    @endif
+                                    <span class="font-weight-bold {{ $isVar ? 'text-primary' : 'text-dark' }}">{{ $p->name }}</span><br>
+                                    <small class="text-muted extra-small">SKU: {{ $p->sku }}</small>
                                 </div>
                             </div>
                         </td>
                         <td class="text-center">
-                            <span class="badge badge-light border px-2 py-1">{{ $p->product_type ?? 'Chưa phân loại' }}</span>
+                            <span class="badge badge-light border">{{ $p->category->name }}</span>
                         </td>
-
-                        {{-- LOGIC TỒN KHO --}}
-                        <td class="text-center">
-                            @if(!$hasVariants)
-                            <span class="badge {{ $p->stock_quantity <= $p->min_stock ? 'badge-danger' : 'badge-success' }}">
-                                {{ $p->stock_quantity }}
-                            </span>
+                        <td class="text-center font-weight-bold">
+                            @if($isVar) {{ $p->variants->sum('stock_quantity') }}
                             @else
-                            <span class="badge badge-pill badge-dark" title="Tổng tồn của các biến thể">
-                                {{ $p->variants->sum('stock_quantity') }}
+                            <span class="badge {{ $p->stock_quantity <= 0 ? 'badge-danger' : ($p->stock_quantity <= $p->min_stock ? 'badge-warning' : 'badge-success') }}">
+                                {{ $p->stock_quantity }}
                             </span>
                             @endif
                         </td>
-
-                        {{-- LOGIC HIỂN THỊ GIÁ --}}
-                        @if(!$hasVariants)
-                        <td class="text-right text-muted">{{ number_format($p->cost_price) }}</td>
-                        <td class="text-right font-weight-bold text-primary">{{ number_format($p->retail_price) }}</td>
+                        @if(!$isVar)
+                        <td class="text-right text-primary font-weight-bold">{{ number_format($p->retail_price) }}</td>
                         <td class="text-right text-success">{{ number_format($p->wholesale_price) }}</td>
-                        <td class="text-right text-info">{{ number_format($p->ctv_price) }}</td>
                         <td class="text-right text-orange">{{ number_format($p->ecommerce_price) }}</td>
                         @else
-                        <td colspan="5" class="text-center text-muted italic small">
-                            <i class="fas fa-layer-group mr-1"></i> Có {{ $p->variants->count() }} biến thể (Dung tích/Màu sắc)
-                        </td>
+                        <td colspan="3" class="text-center text-muted small italic">Có {{ $p->variants->count() }} phiên bản</td>
                         @endif
-
                         <td class="text-center">
                             <div class="btn-group">
-                                <a href="{{ route('products.edit', $p->id) }}" class="btn btn-xs btn-warning border shadow-sm" title="Sửa"><i class="fas fa-edit"></i></a>
-
-                                <a href="{{ route('products.create') }}?parent_id={{ $p->id }}" class="btn btn-xs btn-primary" title="Thêm biến thể/phiên bản">
-                                    <i class="fas fa-plus-square"></i>
-                                </a>
-
-                                <button class="btn btn-xs btn-info border shadow-sm btn-view-desc"
-                                    data-full-text="{{ $p->description }}"
-                                    data-name="{{ $p->name }}"
-                                    title="Mô tả">
-                                    <i class="fas fa-file-alt"></i>
-                                </button>
-
-                                <form action="{{ route('products.destroy', $p->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Xóa sản phẩm này sẽ xóa toàn bộ biến thể liên quan. Bạn chắc chắn chứ?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-xs btn-danger border shadow-sm"><i class="fas fa-trash"></i></button>
-                                </form>
+                                <a href="{{ route('products.edit', $p->id) }}" class="btn btn-xs btn-default border"><i class="fas fa-edit text-warning"></i></a>
+                                <button class="btn btn-xs btn-default border btn-view-desc" data-name="{{ $p->name }}"><i class="fas fa-file-alt text-success"></i><textarea class="d-none raw-description">{!! $p->description !!}</textarea></button>
+                                <form action="{{ route('products.destroy', $p->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Xóa?')">@csrf @method('DELETE')<button type="submit" class="btn btn-xs btn-default border"><i class="fas fa-trash text-danger"></i></button></form>
                             </div>
                         </td>
                     </tr>
-
-                    {{-- DANH SÁCH BIẾN THỂ CON (Hiện ra ngay bên dưới cha) --}}
-                    @if($hasVariants)
+                    @if($isVar)
                     @foreach($p->variants as $v)
-                    <tr class="child-row child-of-{{ $p->id }} bg-white">
-                        <td class="pl-5">
-                            <div class="d-flex align-items-center">
-                                <div class="tree-line mr-2"></div>
-                                <div>
-                                    <span class="text-primary font-weight-bold">{{ $v->variant_label }}</span><br>
-                                    <small class="text-muted">{{ $v->sku }}</small>
-                                </div>
-                            </div>
+                    <tr class="child-row child-of-{{ $p->id }} bg-white" style="display: none;">
+                        <td class="pl-5"><span class="text-dark font-weight-bold">{{ $v->variant_label }}</span>
+                            <div class="text-muted extra-small">SKU: {{ $v->sku }}</div>
                         </td>
-                        <td class="text-center small text-muted">{{ $v->product_type }}</td>
+                        <td class="text-center small text-muted">---</td>
+                        <td class="text-center"><span class="badge {{ $v->stock_quantity <= $v->min_stock ? 'badge-warning' : 'badge-light border' }}">{{ $v->stock_quantity }}</span></td>
+                        <td class="text-right text-primary">{{ number_format($v->retail_price) }}</td>
+                        <td class="text-right text-success">{{ number_format($v->wholesale_price) }}</td>
+                        <td class="text-right text-orange">{{ number_format($v->ecommerce_price) }}</td>
                         <td class="text-center">
-                            <span class="badge {{ $v->stock_quantity <= $v->min_stock ? 'badge-danger' : 'badge-light border' }}">
-                                {{ $v->stock_quantity }}
-                            </span>
-                        </td>
-                        <td class="text-right text-muted small">{{ number_format($v->cost_price) }}</td>
-                        <td class="text-right text-primary font-weight-bold">{{ number_format($v->retail_price) }}</td>
-                        <td class="text-right text-success small">{{ number_format($v->wholesale_price) }}</td>
-                        <td class="text-right text-info small">{{ number_format($v->ctv_price) }}</td>
-                        <td class="text-right text-orange font-weight-bold">{{ number_format($v->ecommerce_price) }}</td>
-                        <td class="text-center">
-                            <div class="btn-group">
-                                <a href="{{ route('products.edit', $v->id) }}" class="btn btn-xs btn-link text-warning p-0 mx-1"><i class="fas fa-edit"></i></a>
-                                <button class="btn btn-xs btn-link text-info p-0 mx-1 btn-view-desc"
-                                    {{-- Ưu tiên mô tả con, nếu trống lấy mô tả cha --}}
-                                    data-full-text="{{ $v->description ?: $p->description }}"
-                                    data-name="{{ $p->name }} - {{ $v->variant_label }}"
-                                    title="Mô tả">
-                                    <i class="fas fa-file-alt"></i>
-                                </button>
-                                <form action="{{ route('products.destroy', $v->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Xóa biến thể này?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-xs btn-link text-danger p-0 mx-1"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </div>
+                            <form action="{{ route('products.destroy', $v->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Xóa biến thể này?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-danger border-0 bg-transparent mx-1"><i class="fas fa-trash"></i></button>
+                            </form>
                         </td>
                     </tr>
                     @endforeach
                     @endif
-
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center p-5 text-muted">Chưa có sản phẩm nào trong hệ thống.</td>
+                        <td colspan="7" class="text-center p-4">Không tìm thấy sản phẩm.</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
-
-    <div class="card-footer bg-white border-top">
-        <div class="float-right shadow-sm">
-            {{ $products->links() }}
-        </div>
-    </div>
+    <div class="card-footer bg-white border-top py-2">{{ $products->links() }}</div>
 </div>
 
-{{-- MODAL IMPORT EXCEL --}}
+<!-- MODAL IMPORT EXCEL -->
 <div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <form action="{{ route('products.import') }}" method="POST" enctype="multipart/form-data">
             @csrf
-            <div class="modal-content shadow-lg border-0">
+            <div class="modal-content shadow border-0">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title"><i class="fas fa-file-excel mr-2"></i>Nhập sản phẩm từ Excel</h5>
+                    <h5 class="modal-title font-weight-bold"><i class="fas fa-file-excel mr-2"></i>Nhập sản phẩm từ Excel</h5>
                     <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="font-weight-bold">Chọn file dữ liệu (.xlsx hoặc .xls)</label>
-                        <input type="file" name="excel_file" class="form-control-file border p-2 rounded" required>
-                    </div>
-                    <div class="alert alert-info py-2 small">
-                        <i class="fas fa-info-circle mr-1"></i> Tải file mẫu bên dưới, điền dữ liệu và upload lại hệ thống.
+                        <input type="file" name="excel_file" class="form-control-file border p-2 rounded w-100" required>
                     </div>
                     <a href="{{ route('products.template') }}" class="btn btn-outline-primary btn-sm btn-block font-weight-bold">
-                        <i class="fas fa-download mr-1"></i> TẢI FILE EXCEL MẪU TẠI ĐÂY
+                        <i class="fas fa-download mr-1"></i> TẢI FILE EXCEL MẪU
                     </a>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-success btn-sm px-4">Bắt đầu Import</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4 shadow-sm">Bắt đầu Import</button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-{{-- MODAL XEM MÔ TẢ --}}
+<!-- MODAL XEM MÔ TẢ (JS GIẢI MÃ CHUẨN) -->
 <div class="modal fade" id="modalViewDescription" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content shadow-lg border-0">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title font-weight-bold text-uppercase"><i class="fas fa-info-circle mr-2"></i>Mô tả sản phẩm</h5>
+            <div class="modal-header bg-info text-white py-2">
+                <h5 class="modal-title font-weight-bold small">CHI TIẾT MÔ TẢ</h5>
                 <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body p-4">
-                <h5 id="modal-product-name" class="text-primary border-bottom pb-2 mb-3"></h5>
-                <div id="modal-full-description" class="text-dark" style="white-space: pre-wrap; line-height: 1.6;"></div>
+                <h5 id="modal-product-name" class="text-primary border-bottom pb-2 mb-3 font-weight-bold"></h5>
+                <div id="modal-full-description" class="rendered-html" style="max-height: 500px; overflow-y: auto;"></div>
             </div>
         </div>
     </div>
@@ -251,57 +193,113 @@
 
 @push('styles')
 <style>
-    /* Style cho phân cấp cha con */
-    .bg-parent {
+    .bg-parent-row {
         background-color: #f8f9fa !important;
-        border-bottom: 2px solid #eee !important;
-    }
-
-    .bg-variant {
-        background-color: #fff;
+        border-bottom: 1px solid #dee2e6 !important;
     }
 
     .child-row td {
         border-top: 1px dashed #eee !important;
+        vertical-align: middle !important;
     }
 
-    .tree-line {
+    .tree-branch {
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 50%;
         width: 15px;
-        height: 20px;
         border-left: 2px solid #dee2e6;
         border-bottom: 2px solid #dee2e6;
-        margin-top: -12px;
-        margin-left: 10px;
     }
 
-    /* Font size & Badge */
     .text-12 {
         font-size: 11px;
-        font-weight: 700;
-        color: #777;
     }
 
     .text-13 {
         font-size: 13.5px;
     }
 
-    .italic {
-        font-style: italic;
+    .extra-small {
+        font-size: 10px;
     }
 
-    .badge-pill {
-        padding-right: 0.6em;
-        padding-left: 0.6em;
-        border-radius: 10rem;
+    .btn-toggle-row {
+        transition: transform 0.2s;
+        display: inline-block;
     }
 
-    /* Table hover */
-    .table-hover tbody tr:hover {
-        background-color: rgba(0, 123, 255, .05) !important;
+    .btn-toggle-row.active {
+        transform: rotate(90deg);
     }
 
-    .bg-gray-light {
-        background-color: #f4f6f9;
+    /* Lớp bao bọc nội dung mô tả */
+    .rendered-html {
+        line-height: 1.8;
+        color: #333;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+        font-size: 15px;
+        padding: 10px 15px;
+    }
+
+    /* Định dạng tiêu đề H3 - Tạo ngăn cách rõ ràng */
+    .rendered-html h3 {
+        font-size: 17px;
+        font-weight: 700;
+        color: #222;
+        text-transform: uppercase;
+        margin-top: 25px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #eee;
+        /* Đường gạch chân ngăn cách */
+        display: block;
+    }
+
+    /* Định dạng các đoạn văn */
+    .rendered-html p {
+        margin-bottom: 12px;
+        display: block;
+        /* Ép xuống dòng */
+    }
+
+    /* Định dạng danh sách có dấu chấm */
+    .rendered-html ul {
+        margin-bottom: 15px;
+        padding-left: 20px;
+        list-style-type: disc !important;
+        /* Hiện dấu chấm tròn */
+    }
+
+    .rendered-html li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+    }
+
+    /* Làm nổi bật chữ đậm */
+    .rendered-html strong {
+        color: #000;
+        font-weight: 600;
+    }
+
+    /* Phần hashtag cuối bài */
+    .rendered-html p:last-child {
+        margin-top: 20px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        color: #0056b3;
+    }
+
+    /* Tùy chỉnh thanh cuộn modal */
+    #modal-full-description::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #modal-full-description::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 10px;
     }
 </style>
 @endpush
@@ -309,24 +307,18 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
-        // Mặc định hiện tất cả biến thể
-        // Nếu muốn ẩn mặc định thì thêm $('.child-row').hide(); ở đây
-
-        // Nút Đóng/Mở biến thể
-        $('.btn-toggle-variants').on('click', function() {
+        // Toggle ẩn/hiện biến thể
+        $('.btn-toggle-row').on('click', function() {
             let target = $(this).data('target');
-            let icon = $(this).find('i');
-            $(target).fadeToggle(100);
-            icon.toggleClass('fa-chevron-down fa-chevron-right');
+            $(target).toggle();
+            $(this).toggleClass('active');
         });
 
-        // Xử lý Modal Mô tả
+        // Xử lý hiển thị mô tả
         $('.btn-view-desc').on('click', function() {
             // Dùng .attr để lấy dữ liệu thô từ HTML, tránh lỗi cache hoặc sai kiểu dữ liệu
-            let fullText = $(this).attr('data-full-text');
+            let fullText = $(this).find('.raw-description').val() || $(this).find('.raw-description').text() || '';
             let productName = $(this).attr('data-name');
-
-            console.log("Mô tả đọc được:", fullText); // Dòng này để bạn F12 lên kiểm tra
 
             // Kiểm tra chính xác: nếu là undefined, null hoặc chuỗi chỉ có khoảng trắng
             if (fullText === undefined || fullText === null || fullText.trim() === "") {

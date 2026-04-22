@@ -56,6 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/lookup', [InventoryController::class, 'index'])->name('inventoryLookup.index');
         Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
     });
+    Route::get('products/create-combo', [ProductController::class, 'createCombo'])->name('products.create_combo');
+    Route::post('products/store-combo', [ProductController::class, 'storeCombo'])->name('products.store_combo');
 
     // --- NHÓM BÁN HÀNG ---
     Route::prefix('sales')->group(function () {
