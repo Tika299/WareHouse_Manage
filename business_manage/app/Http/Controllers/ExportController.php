@@ -97,7 +97,7 @@ class ExportController extends Controller
 
     public function store(Request $request)
     {
-        // Validate dữ liệu
+        // 1. Validate dữ liệu đầu vào
         $request->validate([
             'customer_id' => 'required',
             'account_id' => 'required',
@@ -106,68 +106,63 @@ class ExportController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
-            // 1. Tính toán tiền hàng và phí vận chuyển
+            // 2. Tính toán tổng tiền hàng
             $totalProductAmount = 0;
             foreach ($request->items as $item) {
                 $totalProductAmount += $item['quantity'] * $item['unit_price'];
             }
 
             $shipFee = $request->shipping_fee ?? 0;
-            // SPEC: Nếu khách chịu phí, cộng vào đơn. Nếu shop chịu, đơn chỉ tính tiền hàng.
+            // Nếu khách trả phí ship thì cộng vào tổng đơn, nếu shop trả thì không cộng
             $totalFinal = $totalProductAmount + ($request->shipping_payor == 'customer' ? $shipFee : 0);
 
-            // 2. Tạo đơn hàng chính
+            // 3. Tạo đơn hàng chính (SalesOrder)
             $order = SalesOrder::create([
                 'customer_id' => $request->customer_id,
                 'account_id' => $request->account_id,
                 'shipping_unit_id' => $request->shipping_unit_id,
                 'shipping_fee' => $shipFee,
-                'shipping_payor' => $request->shipping_payor,
+                'shipping_payor' => $request->shipping_payor ?? 'shop',
                 'total_product_amount' => $totalProductAmount,
                 'total_final_amount' => $totalFinal,
                 'paid_amount' => $request->paid_amount ?? 0,
             ]);
 
-            // 3. Xử lý từng sản phẩm
+            // 4. Xử lý từng sản phẩm trong đơn hàng
             foreach ($request->items as $item) {
-                $product = Product::lockForUpdate()->find($item['product_id']);
+                /**
+                 * QUAN TRỌNG: Gọi hàm performStockDeduction để xử lý trừ kho.
+                 * Hàm này đã bao gồm: 
+                 * - Kiểm tra tồn kho (chặn tồn âm)
+                 * - Tự động phân tách nếu là Combo (trừ các thành phần lẻ)
+                 * - Cập nhật số lượng trong Database
+                 * - Ghi Log thẻ kho (StockLog)
+                 */
+                $product = $this->performStockDeduction($item['product_id'], $item['quantity'], $order->id, 'export');
 
-                // Kiểm tra tồn kho
-                if ($product->stock_quantity < $item['quantity']) {
-                    throw new \Exception("Sản phẩm {$product->name} không đủ tồn kho!");
-                }
-
-                // Lưu chi tiết & CHỐT GIÁ VỐN tại thời điểm bán (BQGQ) để tính lãi sau này
+                // Lưu chi tiết đơn hàng (SalesDetail)
+                // cost_price_at_sale lấy từ $product trả về từ hàm trừ kho (giá vốn BQGQ hiện tại)
                 SalesDetail::create([
                     'sales_order_id' => $order->id,
-                    'product_id' => $product->id,
+                    'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'cost_price_at_sale' => $product->cost_price // Quan trọng: Giá vốn hiện tại
+                    'cost_price_at_sale' => $product->cost_price
                 ]);
 
-                // Trừ tồn kho & Ghi thẻ kho
-                $oldQty = $product->stock_quantity;
-                $newQty = $oldQty - $item['quantity'];
-                $product->update(['stock_quantity' => $newQty]);
-
-                StockLog::create([
-                    'product_id' => $product->id,
-                    'ref_type' => 'export',
-                    'ref_id' => $order->id,
-                    'change_qty' => -$item['quantity'],
-                    'final_qty' => $newQty
-                ]);
+                /**
+                 * LƯU Ý: KHÔNG VIẾT LỆNH $product->update(...) Ở ĐÂY NỮA.
+                 * VIỆC TRỪ KHO ĐÃ ĐƯỢC XỬ LÝ TRONG HÀM performStockDeduction.
+                 */
             }
 
-            // 4. Cập nhật Nợ gộp khách hàng
+            // 5. Cập nhật Nợ gộp khách hàng (CreditLog)
             $debt = $totalFinal - ($request->paid_amount ?? 0);
-            $customer = Customer::find($request->customer_id);
             if ($debt > 0) {
+                $customer = Customer::find($request->customer_id);
                 $oldCustomerDebt = $customer->total_debt;
                 $customer->increment('total_debt', $debt);
 
-                // Ghi Credit Log
                 CreditLog::create([
                     'target_type' => 'customer',
                     'target_id' => $customer->id,
@@ -179,7 +174,7 @@ class ExportController extends Controller
                 ]);
             }
 
-            // 5. Cập nhật số dư tài khoản tiền (Nếu khách có trả tiền mặt/chuyển khoản)
+            // 6. Cập nhật số dư tài khoản tiền (Nếu khách có thanh toán tiền mặt/chuyển khoản)
             if ($request->paid_amount > 0) {
                 Account::find($request->account_id)->increment('current_balance', $request->paid_amount);
             }
@@ -231,7 +226,7 @@ class ExportController extends Controller
 
             // Trừ kho hàng xuất (Giữ nguyên logic cũ nhưng đảm bảo dùng biến salesOrder)
             foreach ($request->export_items as $item) {
-                $p = Product::lockForUpdate()->find($item['product_id']);
+                $p = $this->performStockDeduction($item['product_id'], $item['quantity'], $salesOrder->id, 'barter');
                 SalesDetail::create([
                     'sales_order_id' => $salesOrder->id,
                     'product_id' => $p->id,
@@ -311,5 +306,37 @@ class ExportController extends Controller
 
             return redirect()->route('returnforms.index')->with('msg', 'Giao dịch đổi hàng hoàn tất!');
         });
+    }
+
+    private function performStockDeduction($productId, $quantity, $orderId, $refType = 'export')
+    {
+        $product = Product::with('comboItems.component')->lockForUpdate()->find($productId);
+
+        if ($product->is_combo) {
+            // Nếu bán Combo: Duyệt qua từng thành phần để trừ kho lẻ
+            foreach ($product->comboItems as $item) {
+                $deductQty = $item->quantity * $quantity; // Định mức * Số lượng combo bán
+
+                // Đệ quy: Gọi lại chính hàm này để trừ kho sản phẩm lẻ
+                $this->performStockDeduction($item->product_id, $deductQty, $orderId, 'combo_deduct');
+            }
+        } else {
+            // Nếu bán sản phẩm lẻ: Kiểm tra tồn và trừ như bình thường
+            if ($product->stock_quantity < $quantity) {
+                throw new \Exception("Sản phẩm {$product->name} không đủ tồn kho!");
+            }
+
+            $newQty = $product->stock_quantity - $quantity;
+            $product->update(['stock_quantity' => $newQty]);
+
+            StockLog::create([
+                'product_id' => $product->id,
+                'ref_type' => $refType,
+                'ref_id' => $orderId,
+                'change_qty' => -$quantity,
+                'final_qty' => $newQty
+            ]);
+        }
+        return $product;
     }
 }

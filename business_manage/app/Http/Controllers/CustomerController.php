@@ -58,7 +58,7 @@ class CustomerController extends Controller
             'phone' => 'required|max:20',
         ]);
 
-        $customer =Customer::create($request->all());
+        $customer = Customer::create($request->all());
 
         if ($request->ajax()) {
             return response()->json([
@@ -120,6 +120,10 @@ class CustomerController extends Controller
 
     public function searchAjax(Request $request)
     {
-        return $this->performSelect2Search($request, \App\Models\Customer::class, ['name', 'phone']);
+        return $this->performSelect2Search(
+            $request,
+            \App\Models\Customer::class,
+            ['name', 'phone']
+        );
     }
 }

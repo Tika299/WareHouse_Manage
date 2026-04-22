@@ -1,271 +1,158 @@
 @extends('layouts.app')
-
-@section('title', isset($product) ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới')
-
+@section('title', 'Sửa: ' . $product->name)
 @section('content')
 <div class="container-fluid">
-    <form action="{{ isset($product) ? route('products.update', $product->id) : route('products.store') }}" method="POST" id="productForm">
-        @csrf
-        @if(isset($product)) @method('PUT') @endif
+    <form action="{{ route('products.update', $product->id) }}" method="POST">
+        @csrf @method('PUT')
+        <input type="hidden" name="convert_to_single" id="convert_to_single" value="0">
 
         <div class="row">
-            <!-- CỘT TRÁI: CẤU HÌNH CHUNG & HỆ SỐ -->
-            <div class="col-md-4">
-                <div class="card card-primary card-outline shadow-sm">
-                    <div class="card-header">
-                        <h3 class="card-title font-weight-bold">1. Thông tin cơ bản</h3>
+            <div class="col-md-12">
+                <div class="card card-primary card-outline card-tabs shadow-sm">
+                    <div class="card-header p-0 pt-1 border-bottom-0">
+                        <ul class="nav nav-tabs" id="productTab" role="tablist">
+                            <li class="nav-item"><a class="nav-link active" data-toggle="pill" href="#info">Thông tin & Kho</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="pill" href="#pricing">Hệ số giá</a></li>
+                        </ul>
                     </div>
                     <div class="card-body">
-                        <div class="form-group">
-                            <label>Tên sản phẩm chính <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" placeholder="Ví dụ: Nước Hoa Lattafa" required value="{{ old('name', $product->name ?? '') }}">
-                        </div>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="info">
+                                <div class="row">
+                                    <div class="col-md-4 form-group"><label>Tên SP</label><input type="text" name="name" class="form-control" value="{{ $product->name }}" required></div>
+                                    <div class="col-md-3 form-group"><label>Thương hiệu</label>
+                                        <select name="brand_id" class="form-control select2-tags">
+                                            @foreach($brands as $br) <option value="{{ $br->id }}" {{ $product->brand_id == $br->id ? 'selected' : '' }}>{{ $br->name }}</option> @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 form-group"><label>Ngành hàng</label>
+                                        <select name="category_id" class="form-control select2-tags">
+                                            @foreach($categories as $cat) <option value="{{ $cat->id }}" {{ $product->category_id == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option> @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 form-group"><label>Đơn vị</label><input type="text" name="unit" class="form-control" value="{{ $product->unit }}"></div>
+                                </div>
 
-                        <div class="row">
-                            <div class="col-md-6 form-group">
-                                <label>Ngành hàng</label>
-                                <select name="product_type" class="form-control">
-                                    <option value="Mỹ phẩm" {{ (isset($product) && $product->product_type == 'Mỹ phẩm') ? 'selected' : '' }}>Mỹ phẩm</option>
-                                    <option value="Dụng cụ" {{ (isset($product) && $product->product_type == 'Dụng cụ') ? 'selected' : '' }}>Dụng cụ</option>
-                                    <option value="Thực phẩm" {{ (isset($product) && $product->product_type == 'Thực phẩm') ? 'selected' : '' }}>Thực phẩm</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 form-group">
-                                <label>Hình thức tạo</label>
-                                <select id="is_variable" name="is_variable" class="form-control border-primary font-weight-bold" {{ isset($product) ? 'disabled' : '' }}>
-                                    <option value="0" {{ (isset($product) && !$product->variants->isNotEmpty()) ? 'selected' : '' }}>Sản phẩm đơn lẻ</option>
-                                    <option value="1" {{ (isset($product) && $product->variants->isNotEmpty()) ? 'selected' : '' }}>Có nhiều biến thể</option>
-                                </select>
-                            </div>
-                        </div>
+                                <div id="single_product_fields" style="{{ $product->variants->isNotEmpty() ? 'display:none;' : '' }}">
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-md-3 form-group"><label>SKU</label><input type="text" name="sku" class="form-control font-weight-bold" value="{{ $product->sku }}"></div>
+                                        <div class="col-md-3 form-group"><label>Giá vốn</label><input type="number" name="cost_price" class="form-control" value="{{ (int)$product->cost_price }}"></div>
+                                        <div class="col-md-3 form-group"><label>Tồn kho</label><input type="number" name="stock_quantity" class="form-control bg-light" value="{{ $product->stock_quantity }}"></div>
+                                        <div class="col-md-3 form-group"><label>Tồn tối thiểu</label><input type="number" name="min_stock" class="form-control" value="{{ $product->min_stock }}"></div>
+                                    </div>
+                                    <div class="row bg-light p-2 rounded mb-3">
+                                        <div class="col-md-3 form-group"><label class="small text-primary">Giá Lẻ ấn định</label><input type="number" name="manual_retail_price" class="form-control form-control-sm" value="{{ (int)$product->manual_retail_price ?: '' }}"></div>
+                                        <div class="col-md-3 form-group"><label class="small text-success">Giá Sỉ ấn định</label><input type="number" name="manual_wholesale_price" class="form-control form-control-sm" value="{{ (int)$product->manual_wholesale_price ?: '' }}"></div>
+                                        <div class="col-md-3 form-group"><label class="small text-info">Giá CTV ấn định</label><input type="number" name="manual_ctv_price" class="form-control form-control-sm" value="{{ (int)$product->manual_ctv_price ?: '' }}"></div>
+                                        <div class="col-md-3 form-group"><label class="small text-orange">Giá Sàn ấn định</label><input type="number" name="manual_ecommerce_price" class="form-control form-control-sm" value="{{ (int)$product->manual_ecommerce_price ?: '' }}"></div>
+                                    </div>
+                                    @if($product->variants->isEmpty())<div class="text-center"><button type="button" class="btn btn-outline-warning btn-sm" id="btnConvertToVariable"><i class="fas fa-exchange-alt"></i> Chuyển sang Biến thể</button></div>@endif
+                                </div>
 
-                        <div class="form-group">
-                            <label>Mô tả / Đặc điểm</label>
-                            <textarea name="description" class="form-control" rows="3">{{ old('description', $product->description ?? '') }}</textarea>
+                                <div id="variant_management_section" style="{{ $product->variants->isNotEmpty() ? '' : 'display:none;' }}">
+                                    <hr><h6 class="text-primary font-weight-bold">PHẦN BIẾN THỂ</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead class="bg-light small text-center">
+                                                <tr>
+                                                    <th>Phân loại</th>
+                                                    <th>SKU</th>
+                                                    <th>Vốn</th>
+                                                    <th>Tồn</th>
+                                                    <th class="text-primary">G.Lẻ</th>
+                                                    <th class="text-success">G.Sỉ</th>
+                                                    <th class="text-info">G.CTV</th>
+                                                    <th class="text-orange">G.Sàn</th>
+                                                    <th>#</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="variantBody">
+                                                @foreach($product->variants as $v)
+                                                <tr>
+                                                    <td><input type="text" name="variants[{{ $v->id }}][variant_label]" class="form-control form-control-sm v-label" value="{{ $v->variant_label }}" required></td>
+                                                    <td><input type="text" name="variants[{{ $v->id }}][sku]" class="form-control form-control-sm v-sku" value="{{ $v->sku }}" required></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][cost_price]" class="form-control form-control-sm v-cost" value="{{ (int)$v->cost_price }}"></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][stock_quantity]" class="form-control form-control-sm v-stock" value="{{ $v->stock_quantity }}"></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][manual_retail_price]" class="form-control form-control-sm" value="{{ (int)$v->manual_retail_price ?: '' }}"></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][manual_wholesale_price]" class="form-control form-control-sm" value="{{ (int)$v->manual_wholesale_price ?: '' }}"></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][manual_ctv_price]" class="form-control form-control-sm" value="{{ (int)$v->manual_ctv_price ?: '' }}"></td>
+                                                    <td><input type="number" name="variants[{{ $v->id }}][manual_ecommerce_price]" class="form-control form-control-sm" value="{{ (int)$v->manual_ecommerce_price ?: '' }}"></td>
+                                                    <td class="text-center"><button type="button" class="btn btn-xs btn-outline-danger btn-collapse" title="Về đơn lẻ"><i class="fas fa-compress-alt"></i></button></td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-info btn-sm mt-2" id="addVariant"><i class="fas fa-plus"></i> Thêm mới</button>
+                                </div>
+                                <div class="mt-4"><textarea name="description" id="product_desc">{!! $product->description !!}</textarea></div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="pricing">
+                                <div class="row">
+                                    <div class="col-md-4 form-group"><label>Hệ số Lẻ (x)</label><input type="number" step="0.01" name="factor_retail" class="form-control" value="{{ $product->factor_retail }}"></div>
+                                    <div class="col-md-4 form-group"><label>Hệ số Sỉ (x)</label><input type="number" step="0.01" name="factor_wholesale" class="form-control" value="{{ $product->factor_wholesale }}"></div>
+                                    <div class="col-md-4 form-group"><label>Hệ số CTV (x)</label><input type="number" step="0.01" name="factor_ctv" class="form-control" value="{{ $product->factor_ctv }}"></div>
+                                    <div class="col-md-6 form-group"><label>Lãi Sàn mong muốn (%)</label><input type="number" step="0.01" name="factor_eco_margin" class="form-control" value="{{ $product->factor_eco_margin }}"></div>
+                                    <div class="col-md-6 form-group"><label>Phí sàn thu (%)</label><input type="number" step="0.01" name="factor_eco_fee" class="form-control" value="{{ $product->factor_eco_fee }}"></div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    <div class="card-footer text-right bg-white border-top">
+                        <a href="{{ route('products.index') }}" class="btn btn-default">Quay lại</a>
+                        <button type="submit" class="btn btn-primary px-5 shadow">LƯU CẬP NHẬT</button>
                     </div>
                 </div>
-
-                <!-- HỆ SỐ NHÂN LÃI (Dùng làm công thức mặc định) -->
-                <div class="card card-success card-outline shadow-sm">
-                    <div class="card-header">
-                        <h3 class="card-title font-weight-bold">2. Hệ số nhân lãi (%)</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-6 form-group">
-                                <label><small>Hệ số Lẻ (x)</small></label>
-                                <input type="number" step="0.01" name="factor_retail" class="form-control factor-input" value="{{ $product->factor_retail ?? 1.50 }}">
-                            </div>
-                            <div class="col-6 form-group">
-                                <label><small>Hệ số Sỉ (x)</small></label>
-                                <input type="number" step="0.01" name="factor_wholesale" class="form-control factor-input" value="{{ $product->factor_wholesale ?? 1.10 }}">
-                            </div>
-                            <div class="col-6 form-group">
-                                <label><small>Hệ số CTV (x)</small></label>
-                                <input type="number" step="0.01" name="factor_ctv" class="form-control factor-input" value="{{ $product->factor_ctv ?? 1.20 }}">
-                            </div>
-                            <div class="col-6 form-group">
-                                <label><small>Lãi Sàn (%)</small></label>
-                                <input type="number" step="0.01" name="factor_eco_margin" id="margin_eco" class="form-control factor-input" value="{{ $product->factor_eco_margin ?? 0.50 }}">
-                            </div>
-                            <div class="col-12 form-group">
-                                <label><small>Phí sàn thu (%)</small></label>
-                                <input type="number" step="0.01" name="factor_eco_fee" id="fee_eco" class="form-control factor-input" value="{{ $product->factor_eco_fee ?? 0.30 }}">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CỘT PHẢI: CHI TIẾT KHO & GIÁ -->
-            <div class="col-md-8">
-                <!-- BOX CHO SẢN PHẨM ĐƠN LẺ -->
-                <div id="single_box" class="card card-info card-outline shadow-sm">
-                    <div class="card-header">
-                        <h3 class="card-title font-weight-bold">3. Thông số kho & Giá bán</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 form-group">
-                                <label>Mã SKU</label>
-                                <input type="text" name="sku" class="form-control" value="{{ $product->sku ?? '' }}" placeholder="Để trống tự tạo">
-                            </div>
-                            <div class="col-md-3 form-group">
-                                <label>Giá vốn (đ)</label>
-                                <input type="number" name="cost_price" id="cost_price" class="form-control single-calc" value="{{ $product->cost_price ?? 0 }}">
-                            </div>
-                            <div class="col-md-3 form-group">
-                                <label>Tồn ban đầu</label>
-                                <input type="number" name="stock_quantity" class="form-control" value="{{ $product->stock_quantity ?? 0 }}">
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-12 mb-2"><label class="text-primary"><i class="fas fa-edit"></i> Giá ấn định thủ công (Bỏ qua công thức nếu nhập)</label></div>
-                            <div class="col-md-3 form-group"><small>Giá Lẻ</small><input type="number" name="manual_retail_price" class="form-control single-calc border-primary" value="{{ $product->manual_retail_price ?? '' }}"></div>
-                            <div class="col-md-3 form-group"><small>Giá Sỉ</small><input type="number" name="manual_wholesale_price" class="form-control single-calc border-primary" value="{{ $product->manual_wholesale_price ?? '' }}"></div>
-                            <div class="col-md-3 form-group"><small>Giá CTV</small><input type="number" name="manual_ctv_price" class="form-control single-calc border-primary" value="{{ $product->manual_ctv_price ?? '' }}"></div>
-                            <div class="col-md-3 form-group"><small>Giá Sàn</small><input type="number" name="manual_ecommerce_price" class="form-control single-calc border-primary" value="{{ $product->manual_ecommerce_price ?? '' }}"></div>
-                        </div>
-
-                        <!-- PREVIEW CHO SINGLE -->
-                        <div class="row mt-3 p-3 bg-dark rounded mx-0">
-                            <div class="col-3 text-center border-right"><small class="text-gray">Lẻ chốt</small>
-                                <div class="text-bold" id="view_retail">0đ</div>
-                            </div>
-                            <div class="col-3 text-center border-right"><small class="text-gray">Sỉ chốt</small>
-                                <div class="text-bold" id="view_wholesale">0đ</div>
-                            </div>
-                            <div class="col-3 text-center border-right"><small class="text-gray">CTV chốt</small>
-                                <div class="text-bold" id="view_ctv">0đ</div>
-                            </div>
-                            <div class="col-3 text-center"><small class="text-gray">Sàn chốt</small>
-                                <div class="text-bold" id="view_eco">0đ</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- BOX CHO SẢN PHẨM BIẾN THỂ -->
-                <div id="variable_box" class="card card-info card-outline shadow-sm" style="display: none;">
-                    <div class="card-header d-flex justify-content-between align-items-center py-2">
-                        <h3 class="card-title font-weight-bold">3. Danh sách biến thể</h3>
-                        <button type="button" class="btn btn-sm btn-info ml-auto" id="addVariant"><i class="fas fa-plus"></i> Thêm dòng</button>
-                    </div>
-                    <div class="card-body p-0 table-responsive">
-                        <table class="table table-sm table-bordered mb-0" style="min-width: 1100px;">
-                            <thead class="bg-light text-center text-12">
-                                <tr>
-                                    <th width="150">Dung tích/Màu</th>
-                                    <th width="120">SKU</th>
-                                    <th width="100">Vốn</th>
-                                    <th width="80">Tồn</th>
-                                    <th class="bg-primary-light">Giá Lẻ (đ)</th>
-                                    <th class="bg-primary-light">Giá Sỉ (đ)</th>
-                                    <th class="bg-primary-light">Giá CTV (đ)</th>
-                                    <th class="bg-primary-light">Giá Sàn (đ)</th>
-                                    <th width="40">#</th>
-                                </tr>
-                            </thead>
-                            <tbody id="variantBody">
-                                {{-- Load bằng JS --}}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-12 text-center mt-4 mb-5">
-                <hr>
-                <button type="submit" class="btn btn-primary btn-lg px-5 shadow-lg font-weight-bold">
-                    <i class="fas fa-save mr-2"></i> LƯU SẢN PHẨM
-                </button>
             </div>
         </div>
     </form>
 </div>
-
-<style>
-    .text-12 {
-        font-size: 11.5px;
-        text-transform: uppercase;
-    }
-
-    .bg-dark {
-        background-color: #1e1e2d !important;
-    }
-
-    .text-gray {
-        color: #a1a1c3;
-    }
-
-    .bg-primary-light {
-        background-color: #f0f7ff;
-    }
-
-    .manual-variant-input {
-        border: 1px solid #007bff !important;
-        text-align: right;
-        font-weight: bold;
-    }
-</style>
+@endsection
 
 @push('scripts')
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
 <script>
-    let vIdx = 0;
-
     $(document).ready(function() {
-        // 1. Chuyển đổi giao diện
-        function toggleUI() {
-            if ($('#is_variable').val() === '1') {
-                $('#single_box').hide();
-                $('#variable_box').show();
-                if ($('#variantBody tr').length === 0) $('#addVariant').click();
-            } else {
-                $('#single_box').show();
-                $('#variable_box').hide();
+        CKEDITOR.replace('product_desc', { height: 500, language: 'vi', allowedContent: true, versionCheck: false });
+        $('.select2-tags').select2({ tags: true, placeholder: "Chọn hoặc thêm" });
+
+        $('#btnConvertToVariable').click(function() {
+            if(confirm('Chuyển đổi?')) {
+                let sku = $('input[name="sku"]').val();
+                $('input[name="sku"]').val(sku + '-P');
+                $('#single_product_fields').hide(); $('#variant_management_section').show();
+                addNewVariantRow("Mặc định", sku, $('input[name="cost_price"]').val(), $('input[name="stock_quantity"]').val());
             }
-        }
-        $('#is_variable').change(toggleUI);
-        toggleUI(); // Chạy khi load trang (cho edit)
+        });
 
-        // 2. Thêm dòng biến thể
-        $('#addVariant').click(function() {
-            let html = `
-        <tr>
-            <td>
-                <input type="text" name="new_variants[${vIdx}][variant_label]" class="form-control form-control-sm" placeholder="VD: 100ml" required>
-            </td>
-            <td><input type="text" name="new_variants[${vIdx}][sku]" class="form-control form-control-sm" placeholder="Tự động"></td>
-            <td><input type="number" name="new_variants[${vIdx}][cost_price]" class="form-control form-control-sm" value="0"></td>
-            <td><input type="number" name="new_variants[${vIdx}][stock_quantity]" class="form-control form-control-sm" value="0"></td>
-            <td><input type="number" name="new_variants[${vIdx}][manual_retail_price]" class="form-control form-control-sm manual-variant-input"></td>
-            <td><input type="number" name="variants[${vIdx}][manual_wholesale_price]" class="form-control form-control-sm manual-variant-input" placeholder="Auto"></td>
-            <td><input type="number" name="variants[${vIdx}][manual_ctv_price]" class="form-control form-control-sm manual-variant-input" placeholder="Auto"></td>
-            <td><input type="number" name="variants[${vIdx}][manual_ecommerce_price]" class="form-control form-control-sm manual-variant-input" placeholder="Auto"></td>
-            <td class="text-center"><button type="button" class="btn btn-xs btn-danger remove-v"><i class="fas fa-trash"></i></button></td>
+        $(document).on('click', '.btn-collapse', function() {
+            if(confirm('Thu gọn về đơn lẻ?')) {
+                let row = $(this).closest('tr');
+                $('input[name="sku"]').val(row.find('.v-sku').val());
+                $('input[name="cost_price"]').val(row.find('.v-cost').val());
+                $('input[name="stock_quantity"]').val(row.find('.v-stock').val());
+                $('#convert_to_single').val('1');
+                $('#single_product_fields').show(); $('#variant_management_section').hide();
+            }
+        });
+
+        let newIdx = 999;
+        function addNewVariantRow(label='', sku='', cost=0, stock=0) {
+            let html = `<tr class="table-warning">
+                <td><input type="text" name="new_variants[${newIdx}][variant_label]" class="form-control form-control-sm" value="${label}" required></td>
+                <td><input type="text" name="new_variants[${newIdx}][sku]" class="form-control form-control-sm" value="${sku}"></td>
+                <td><input type="number" name="new_variants[${newIdx}][cost_price]" class="form-control form-control-sm" value="${cost}"></td>
+                <td><input type="number" name="new_variants[${newIdx}][stock_quantity]" class="form-control form-control-sm" value="${stock}"></td>
+                <td><input type="number" name="new_variants[${newIdx}][manual_retail_price]" class="form-control form-control-sm" placeholder="G.Lẻ"></td>
+                <td><input type="number" name="new_variants[${newIdx}][manual_wholesale_price]" class="form-control form-control-sm" placeholder="G.Sỉ"></td>
+                <td class="text-center"><button type="button" class="btn btn-xs btn-danger remove-new-v"><i class="fas fa-trash"></i></button></td>
             </tr>`;
-            $('#variantBody').append(html);
-            vIdx++;
-        });
-
-        $(document).on('click', '.remove-v', function() {
-            $(this).closest('tr').remove();
-        });
-
-        // 3. Logic Preview cho đơn lẻ
-        function calculateSinglePreview() {
-            let cost = parseFloat($('#cost_price').val()) || 0;
-            let fRetail = parseFloat($('input[name="factor_retail"]').val()) || 0;
-            let fWholesale = parseFloat($('input[name="factor_wholesale"]').val()) || 0;
-            let fCtv = parseFloat($('input[name="factor_ctv"]').val()) || 0;
-            let mEco = parseFloat($('#margin_eco').val()) || 0;
-            let fEco = parseFloat($('#fee_eco').val()) || 0;
-
-            const updateField = (name, factor, displayId) => {
-                let manual = $(`input[name="manual_${name}_price"]`).val();
-                let result = (manual > 0) ? manual : (cost * factor);
-
-                // Riêng Ecommerce có công thức đặc thù
-                if (name === 'ecommerce' && (!manual || manual <= 0)) {
-                    result = (fEco < 1) ? (cost * (1 + mEco) / (1 - fEco)) : 0;
-                }
-
-                $(displayId).text(new Intl.NumberFormat('vi-VN').format(Math.round(result)) + 'đ');
-                if (manual > 0) $(displayId).addClass('text-warning').removeClass('text-white');
-                else $(displayId).addClass('text-white').removeClass('text-warning');
-            };
-
-            updateField('retail', fRetail, '#view_retail');
-            updateField('wholesale', fWholesale, '#view_wholesale');
-            updateField('ctv', fCtv, '#view_ctv');
-            updateField('ecommerce', 0, '#view_eco');
+            $('#variantBody').append(html); newIdx++;
         }
-
-        $(document).on('input', '.single-calc, .factor-input', calculateSinglePreview);
-        calculateSinglePreview();
+        $('#addVariant').click(function() { addNewVariantRow(); });
+        $(document).on('click', '.remove-new-v', function() { $(this).closest('tr').remove(); });
     });
 </script>
 @endpush
-@endsection
