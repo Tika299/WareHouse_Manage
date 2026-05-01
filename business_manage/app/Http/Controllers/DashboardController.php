@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Product, SalesOrder, Customer, Supplier, Account, CashVoucher};
+use App\Models\{Product, SalesOrder, Customer, Supplier, Account};
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -18,13 +18,25 @@ class DashboardController extends Controller
         $todayOrders = SalesOrder::whereDate('created_at', $today)->count() ?? 0;
 
         // 2. Thống kê Kho hàng
-        $totalProducts = Product::count();
-        $lowStockCount = Product::whereIn('product_type', ['single', 'variant'])
+        // Chỉ lấy những sản phẩm có tồn kho thực tế (Đơn lẻ hoặc Biến thể con), loại bỏ sản phẩm CHA và COMBO
+        $physicalProductsQuery = Product::where('is_combo', false)
+            ->where(function ($q) {
+                $q->whereNotNull('parent_id') // Là biến thể con
+                    ->orWhere(function ($sq) {
+                        $sq->whereNull('parent_id') // Hoặc là sản phẩm đơn lẻ (không có con)
+                            ->whereDoesntHave('variants');
+                    });
+            });
+
+        $totalProducts = (clone $physicalProductsQuery)->count();
+
+        $lowStockCount = (clone $physicalProductsQuery)
             ->whereRaw('stock_quantity <= min_stock')
+            ->where('stock_quantity', '>', 0)
             ->count();
 
-        // Tính tổng giá trị tồn kho (Vốn)
-        $totalStockValue = Product::whereIn('product_type', ['single', 'variant'])
+        // Tính tổng giá trị tồn kho (Vốn = Tồn * Giá vốn)
+        $totalStockValue = (clone $physicalProductsQuery)
             ->where('stock_quantity', '>', 0)
             ->selectRaw('SUM(stock_quantity * cost_price) as total')
             ->first()->total ?? 0;
@@ -47,14 +59,12 @@ class DashboardController extends Controller
             ->orderBy('date', 'asc')
             ->get();
 
-        // Tách dữ liệu ra mảng phẳng để gửi sang JavaScript (Fix lỗi ParseError)
         $chartLabels = $chartData->pluck('date')->map(fn($d) => date('d/m', strtotime($d)))->toArray();
         $chartTotals = $chartData->pluck('total')->toArray();
 
         // 6. Đơn hàng mới nhất
         $recentOrders = SalesOrder::with('customer')->latest()->limit(5)->get();
 
-        // TRUYỀN TẤT CẢ BIẾN SANG VIEW
         return view('dashboard', [
             'todayRevenue'      => $todayRevenue,
             'todayOrders'       => $todayOrders,
