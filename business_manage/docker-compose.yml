@@ -1,7 +1,5 @@
-version: '3.8'
 services:
 
-  # 1. PHP App
   app:
     build:
       context: .
@@ -12,23 +10,25 @@ services:
     working_dir: /var/www
     volumes:
       - .:/var/www
+    depends_on:
+      - db
     networks:
       - erp-network
 
-  # 2. Web Server (Nginx)
   webserver:
     image: nginx:alpine
     container_name: erp-webserver
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "80:80"
     volumes:
       - .:/var/www
       - ./docker-config/nginx:/etc/nginx/conf.d
+    depends_on:
+      - app
     networks:
       - erp-network
 
-  # 3. Database (MySQL)
   db:
     image: mysql:8.0
     container_name: erp-db
@@ -36,8 +36,8 @@ services:
     environment:
       MYSQL_DATABASE: manage
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_PASSWORD: root
       MYSQL_USER: user
+      MYSQL_PASSWORD: root
     volumes:
       - dbdata:/var/lib/mysql
       - ./manage.sql:/docker-entrypoint-initdb.d/manage.sql
