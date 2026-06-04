@@ -14,7 +14,7 @@ class ProviderController extends Controller
 
     public function index()
     {
-        $suppliers = Supplier::all();
+        $suppliers = Supplier::latest()->paginate(20);
         return view('providers.index', [
             'suppliers' => $suppliers,
             'activeGroup' => 'finance',

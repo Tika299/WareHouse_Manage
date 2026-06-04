@@ -83,6 +83,142 @@ class ExportController extends Controller
         ]);
     }
 
+    public function edit($id)
+    {
+        $order = SalesOrder::with(['details.product', 'customer', 'shippingUnit'])->findOrFail($id);
+
+        if (($order->order_type ?? null) === 'barter') {
+            return redirect()
+                ->route('exports.index')
+                ->with('error', 'Đơn đổi hàng không nên sửa trực tiếp tại đây.');
+        }
+
+        $products = Product::orderBy('name')->get();
+        $customers = Customer::all();
+        $shippingUnits = ShippingUnit::all();
+        $accounts = Account::all();
+
+        return view('exports.edit', [
+            'order' => $order,
+            'products' => $products,
+            'customers' => $customers,
+            'shippingUnits' => $shippingUnits,
+            'accounts' => $accounts,
+            'activeGroup' => 'sales',
+            'activeName' => 'orders',
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'customer_id' => 'required',
+            'account_id' => 'required',
+            'shipping_unit_id' => 'required',
+            'items' => 'required|array',
+            'items.*.product_id' => 'required',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'shipping_fee' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            return DB::transaction(function () use ($request, $id) {
+                $order = SalesOrder::with('details')->lockForUpdate()->findOrFail($id);
+
+                if (($order->order_type ?? null) === 'barter') {
+                    return redirect()
+                        ->route('exports.index')
+                        ->with('error', 'Đơn đổi hàng không nên sửa trực tiếp tại đây.');
+                }
+
+                // 1. Hoàn tác dữ liệu đơn cũ
+                $this->reverseOrderEffects($order, 'edit_reverse');
+
+                // 2. Xóa chi tiết đơn cũ
+                SalesDetail::where('sales_order_id', $order->id)->delete();
+
+                // 3. Tính lại tổng tiền hàng
+                $totalProductAmount = 0;
+
+                foreach ($request->items as $item) {
+                    $totalProductAmount += $item['quantity'] * $item['unit_price'];
+                }
+
+                $shipFee = $request->shipping_fee ?? 0;
+
+                $totalFinal = $totalProductAmount + (
+                    $request->shipping_payor == 'customer' ? $shipFee : 0
+                );
+
+                // 4. Cập nhật đơn chính
+                $order->update([
+                    'customer_id' => $request->customer_id,
+                    'account_id' => $request->account_id,
+                    'shipping_unit_id' => $request->shipping_unit_id,
+                    'shipping_fee' => $shipFee,
+                    'shipping_payor' => $request->shipping_payor ?? 'shop',
+                    'total_product_amount' => $totalProductAmount,
+                    'total_final_amount' => $totalFinal,
+                    'paid_amount' => $request->paid_amount ?? 0,
+                ]);
+
+                // 5. Trừ kho lại và tạo chi tiết đơn mới
+                foreach ($request->items as $item) {
+                    $product = $this->performStockDeduction(
+                        $item['product_id'],
+                        $item['quantity'],
+                        $order->id,
+                        'export_edit'
+                    );
+
+                    SalesDetail::create([
+                        'sales_order_id' => $order->id,
+                        'product_id' => $item['product_id'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'cost_price_at_sale' => $product->cost_price,
+                    ]);
+                }
+
+                // 6. Cập nhật lại công nợ mới
+                $debt = $totalFinal - ($request->paid_amount ?? 0);
+
+                if ($debt > 0) {
+                    $customer = Customer::lockForUpdate()->find($request->customer_id);
+                    $oldDebt = $customer->total_debt;
+
+                    $customer->increment('total_debt', $debt);
+
+                    CreditLog::create([
+                        'target_type' => 'customer',
+                        'target_id' => $customer->id,
+                        'ref_type' => 'order_edit',
+                        'ref_id' => $order->id,
+                        'change_amount' => $debt,
+                        'new_balance' => $oldDebt + $debt,
+                        'note' => "Cập nhật đơn #DH{$order->id}",
+                    ]);
+                }
+
+                // 7. Cộng lại tiền đã thu mới
+                if (($request->paid_amount ?? 0) > 0) {
+                    Account::find($request->account_id)
+                        ->increment('current_balance', $request->paid_amount);
+                }
+
+                return redirect()
+                    ->route('exports.show', $order->id)
+                    ->with('msg', 'Cập nhật đơn hàng thành công!');
+            });
+        } catch (\Throwable $e) {
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+    }
+
     public function show($id)
     {
         // Load đơn hàng cùng với các quan hệ: chi tiết đơn, sản phẩm, khách hàng và ĐV vận chuyển
@@ -306,6 +442,96 @@ class ExportController extends Controller
 
             return redirect()->route('returnforms.index')->with('msg', 'Giao dịch đổi hàng hoàn tất!');
         });
+    }
+
+    private function reverseOrderEffects(SalesOrder $order, string $refType = 'edit_reverse')
+    {
+        $order->loadMissing('details');
+
+        // 1. Hoàn kho sản phẩm cũ
+        foreach ($order->details as $detail) {
+            $this->restoreStock(
+                $detail->product_id,
+                $detail->quantity,
+                $order->id,
+                $refType
+            );
+        }
+
+        // 2. Trừ lại công nợ cũ
+        $oldDebt = $order->total_final_amount - $order->paid_amount;
+
+        if ($oldDebt > 0) {
+            $customer = Customer::lockForUpdate()->find($order->customer_id);
+
+            if ($customer) {
+                $oldBalance = $customer->total_debt;
+                $newBalance = $oldBalance - $oldDebt;
+
+                $customer->update([
+                    'total_debt' => $newBalance,
+                ]);
+
+                CreditLog::create([
+                    'target_type' => 'customer',
+                    'target_id' => $customer->id,
+                    'ref_type' => $refType,
+                    'ref_id' => $order->id,
+                    'change_amount' => -$oldDebt,
+                    'new_balance' => $newBalance,
+                    'note' => "Hoàn tác để sửa đơn #DH{$order->id}",
+                ]);
+            }
+        }
+
+        // 3. Trừ lại tiền đã thu cũ khỏi tài khoản
+        if ($order->paid_amount > 0 && $order->account_id) {
+            $account = Account::lockForUpdate()->find($order->account_id);
+
+            if ($account) {
+                $account->decrement('current_balance', $order->paid_amount);
+            }
+        }
+    }
+
+    private function restoreStock($productId, $quantity, $orderId, $refType = 'edit_reverse')
+    {
+        $product = Product::with('comboItems.component')->lockForUpdate()->find($productId);
+
+        if (!$product) {
+            return;
+        }
+
+        // Nếu là combo thì hoàn kho từng sản phẩm con
+        if ($product->is_combo) {
+            foreach ($product->comboItems as $item) {
+                $restoreQty = $item->quantity * $quantity;
+
+                $this->restoreStock(
+                    $item->product_id,
+                    $restoreQty,
+                    $orderId,
+                    $refType
+                );
+            }
+
+            return;
+        }
+
+        // Nếu là sản phẩm lẻ thì cộng tồn lại
+        $newQty = $product->stock_quantity + $quantity;
+
+        $product->update([
+            'stock_quantity' => $newQty,
+        ]);
+
+        StockLog::create([
+            'product_id' => $product->id,
+            'ref_type' => $refType,
+            'ref_id' => $orderId,
+            'change_qty' => $quantity,
+            'final_qty' => $newQty,
+        ]);
     }
 
     private function performStockDeduction($productId, $quantity, $orderId, $refType = 'export')

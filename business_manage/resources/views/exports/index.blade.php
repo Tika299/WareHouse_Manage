@@ -117,6 +117,11 @@
                             title="In hóa đơn">
                             <i class="fas fa-print"></i>
                         </a>
+                        <a href="{{ route('exports.edit', $order->id) }}"
+                            class="btn btn-xs btn-warning"
+                            title="Sửa đơn hàng">
+                            <i class="fas fa-edit"></i>
+                        </a>
                     </td>
                 </tr>
                 @empty
@@ -134,12 +139,12 @@
     </div>
 </div>
 @if(request()->boolean('print'))
-    <script>
-        window.addEventListener('load', function () {
-            setTimeout(function () {
-                window.print();
-            }, 500);
-        });
-    </script>
+<script>
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            window.print();
+        }, 500);
+    });
+</script>
 @endif
 @endsection

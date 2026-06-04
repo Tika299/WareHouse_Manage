@@ -2,15 +2,15 @@
 @section('title', 'Danh sách Nhà cung cấp')
 @section('content')
 @if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
+<div class="alert alert-success">
+    {{ session('success') }}
+</div>
 @endif
 
 @if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
+<div class="alert alert-danger">
+    {{ $errors->first() }}
+</div>
 @endif
 <div class="card">
     <div class="card-header">
@@ -70,6 +70,11 @@
                 @endforeach
             </tbody>
         </table>
+    </div>
+    <div class="card-footer clearfix">
+        <div class="">
+            {{ $suppliers->links() }}
+        </div>
     </div>
 </div>
 <div class="modal fade" id="importSupplierModal" tabindex="-1" role="dialog" aria-labelledby="importSupplierModalLabel" aria-hidden="true">
