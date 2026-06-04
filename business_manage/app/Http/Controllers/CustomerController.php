@@ -6,6 +6,8 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use App\Traits\Select2Searchable;
+use App\Imports\CustomersImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
 {
@@ -125,5 +127,23 @@ class CustomerController extends Controller
             \App\Models\Customer::class,
             ['name', 'phone']
         );
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ], [
+            'file.required' => 'Vui lòng chọn file Excel.',
+            'file.mimes' => 'File phải là định dạng xlsx, xls hoặc csv.',
+        ]);
+
+        $import = new CustomersImport();
+
+        Excel::import($import, $request->file('file'));
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', "Import xong: thêm mới {$import->created}, cập nhật {$import->updated}, bỏ qua {$import->skipped} dòng.");
     }
 }

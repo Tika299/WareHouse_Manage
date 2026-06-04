@@ -1,10 +1,29 @@
 @extends('layouts.app')
 @section('title', 'Quản lý Khách hàng')
 @section('content')
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title font-weight-bold">Danh sách Khách hàng & Nợ gộp</h3>
-        <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm ml-auto">+ Thêm khách hàng</a>
+        <div class="ml-auto">
+            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#importCustomerModal">
+                <i class="fas fa-file-excel"></i> Import Excel
+            </button>
+
+            <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm">
+                + Thêm khách hàng
+            </a>
+        </div>
     </div>
 
     <!-- BỘ LỌC TÌM KIẾM -->
@@ -78,5 +97,39 @@
         </table>
     </div>
     <div class="card-footer clearfix">{{ $customers->links() }}</div>
+</div>
+<div class="modal fade" id="importCustomerModal" tabindex="-1" role="dialog" aria-labelledby="importCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <form action="{{ route('customers.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+            @csrf
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="importCustomerModalLabel">Import khách hàng từ Excel</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    File Excel cần có các cột: <b>Tên khách hàng</b>, <b>Điện thoại</b>, <b>Địa chỉ</b>, <b>Tỉnh thành</b>, <b>Quận huyện</b>, <b>Phường xã</b>.
+                    <br>
+                    Nếu trùng số điện thoại, hệ thống sẽ cập nhật lại thông tin khách hàng cũ.
+                </div>
+
+                <div class="form-group">
+                    <label>Chọn file Excel</label>
+                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 @endsection

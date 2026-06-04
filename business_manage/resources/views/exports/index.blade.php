@@ -106,11 +106,17 @@
                         @endif
                     </td>
                     <td class="text-center">
-                        {{-- Nút xem chi tiết để xem giá vốn đã chốt và các sản phẩm trong đơn --}}
                         <a href="{{ route('exports.show', $order->id) }}" class="btn btn-xs btn-default" title="Xem chi tiết">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <button class="btn btn-xs btn-default" title="In hóa đơn"><i class="fas fa-print"></i></button>
+
+                        <a href="{{ route('exports.show', ['export' => $order->id, 'print' => 1]) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="btn btn-xs btn-default"
+                            title="In hóa đơn">
+                            <i class="fas fa-print"></i>
+                        </a>
                     </td>
                 </tr>
                 @empty
@@ -127,4 +133,13 @@
         </div>
     </div>
 </div>
+@if(request()->boolean('print'))
+    <script>
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                window.print();
+            }, 500);
+        });
+    </script>
+@endif
 @endsection

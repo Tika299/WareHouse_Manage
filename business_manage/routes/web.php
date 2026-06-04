@@ -66,6 +66,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/barter', [ExportController::class, 'storeBarter'])->name('exports.storeBarter');
 
         Route::get('customers/search-ajax', [CustomerController::class, 'searchAjax'])->name('customers.searchAjax');
+        // IMPORT EXCEL KHÁCH HÀNG
+        Route::post('customers/import', [CustomerController::class, 'import'])
+            ->name('customers.import');
         Route::resource('customers', CustomerController::class);
 
         Route::get('/returns/search-orders', [CustomerReturnController::class, 'searchOrdersAjax'])->name('customer_returns.searchOrdersAjax');
@@ -95,6 +98,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'store' => 'internal_transfers.store',
             'show' => 'internal_transfers.show'
         ]);
+        // IMPORT EXCEL NHÀ CUNG CẤP
+        Route::post('/providers/import', [ProviderController::class, 'import'])
+            ->name('providers.import');
         Route::resource('providers', ProviderController::class);
         Route::get('/credit-logs', [CreditLogController::class, 'index'])->name('credit_logs.index');
     });

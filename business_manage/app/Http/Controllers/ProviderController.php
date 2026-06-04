@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Traits\Select2Searchable;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\SuppliersImport;
 
 class ProviderController extends Controller
 {
@@ -97,5 +99,24 @@ class ProviderController extends Controller
     public function searchAjax(Request $request)
     {
         return $this->performSelect2Search($request, Supplier::class, ['name', 'phone']);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ], [
+            'file.required' => 'Vui lòng chọn file Excel.',
+            'file.mimes' => 'File phải là định dạng xlsx, xls hoặc csv.',
+            'file.max' => 'File không được vượt quá 10MB.',
+        ]);
+
+        $import = new SuppliersImport();
+
+        Excel::import($import, $request->file('file'));
+
+        return redirect()
+            ->route('providers.index')
+            ->with('success', "Import NCC xong: thêm mới {$import->created}, cập nhật {$import->updated}, bỏ qua {$import->skipped} dòng.");
     }
 }

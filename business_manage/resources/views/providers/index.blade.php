@@ -1,10 +1,25 @@
 @extends('layouts.app')
 @section('title', 'Danh sách Nhà cung cấp')
 @section('content')
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Quản lý Nhà cung cấp</h3>
         <div class="card-tools">
+            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#importSupplierModal">
+                <i class="fas fa-file-excel"></i> Import Excel
+            </button>
+
             <a href="{{ route('providers.create') }}" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus"></i> Thêm NCC mới
             </a>
@@ -55,6 +70,47 @@
                 @endforeach
             </tbody>
         </table>
+    </div>
+</div>
+<div class="modal fade" id="importSupplierModal" tabindex="-1" role="dialog" aria-labelledby="importSupplierModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <form action="{{ route('providers.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+            @csrf
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="importSupplierModalLabel">Import nhà cung cấp từ Excel</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    File Excel cần có các cột:
+                    <b>Tên nhà cung cấp</b>,
+                    <b>Điện thoại</b>,
+                    <b>Địa chỉ 1</b>,
+                    <b>Tỉnh/Thành phố</b>,
+                    <b>Quận huyện</b>,
+                    <b>Nợ hiện tại</b>.
+                    <br>
+                    Nếu trùng số điện thoại, hệ thống sẽ cập nhật NCC cũ.
+                    Nếu không có số điện thoại, hệ thống sẽ kiểm tra trùng theo tên NCC.
+                </div>
+
+                <div class="form-group">
+                    <label>Chọn file Excel</label>
+                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection
