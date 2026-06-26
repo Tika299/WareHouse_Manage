@@ -25,7 +25,9 @@ class ProductController extends Controller
         $brands = Brand::orderBy('name')->get();
 
         // Query mặc định: Chỉ lấy sản phẩm CHA, kèm theo các quan hệ
-        $query = Product::whereNull('parent_id')->with(['variants', 'category', 'brand']);
+        $query = Product::whereNull('parent_id')
+            ->with(['variants', 'category', 'brand'])
+            ->withEffectiveStock();
 
         // 1. Tìm kiếm theo Tên hoặc SKU (Tìm xuyên thấu xuống cả SKU con)
         if ($request->filled('search')) {
@@ -51,32 +53,23 @@ class ProductController extends Controller
 
         // 4. Lọc theo Trạng thái kho (Logic tồn > 0)
         if ($request->filled('stock_status')) {
-            $status = $request->stock_status;
-            if ($status == 'in_stock') {
-                $query->where(function ($q) {
-                    $q->where('stock_quantity', '>', 0)
-                        ->orWhereHas('variants', function ($sq) {
-                            $sq->where('stock_quantity', '>', 0);
-                        });
-                });
-            } elseif ($status == 'out_of_stock') {
-                $query->where(function ($q) {
-                    $q->where('stock_quantity', '<=', 0)
-                        ->where(function ($sq) {
-                            $sq->whereDoesntHave('variants')
-                                ->orWhereHas('variants', function ($ssq) {
-                                    $ssq->selectRaw('SUM(stock_quantity)')->havingRaw('SUM(stock_quantity) <= 0');
-                                });
-                        });
-                });
-            } elseif ($status == 'low_stock') {
-                $query->where(function ($q) {
-                    $q->where(function ($sq) {
-                        $sq->whereRaw('stock_quantity <= min_stock AND stock_quantity > 0')->whereDoesntHave('variants');
-                    })->orWhereHas('variants', function ($vq) {
-                        $vq->whereRaw('stock_quantity <= min_stock AND stock_quantity > 0');
-                    });
-                });
+            $stockExpr = "
+        CASE
+            WHEN products.is_combo = 1 THEN COALESCE(cs.combo_stock, 0)
+            ELSE products.stock_quantity
+        END
+    ";
+
+            if ($request->stock_status === 'in_stock') {
+                $query->whereRaw("$stockExpr > 0");
+            }
+
+            if ($request->stock_status === 'out_of_stock') {
+                $query->whereRaw("$stockExpr <= 0");
+            }
+
+            if ($request->stock_status === 'low_stock') {
+                $query->whereRaw("$stockExpr > 0 AND $stockExpr <= products.min_stock");
             }
         }
 

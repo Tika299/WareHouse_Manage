@@ -1,62 +1,67 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
-@section('title', 'Chi tiết phiếu nhập #' . $order->id)
+@section('title', 'Chi tiáº¿t phiáº¿u nháº­p #' . $order->id)
 
 @section('content')
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
             <div class="invoice p-3 mb-3 shadow-sm rounded">
-                <!-- Tiêu đề -->
+                <!-- TiÃªu Ä‘á» -->
                 <div class="row">
                     <div class="col-12">
                         <h4>
-                            <i class="fas fa-file-import text-primary"></i> PHIẾU NHẬP HÀNG
-                            <small class="float-right text-muted">Ngày nhập: {{ $order->created_at->format('d/m/Y H:i') }}</small>
+                            <i class="fas fa-file-import text-primary"></i> PHIáº¾U NHáº¬P HÃ€NG
+                            <small class="float-right text-muted">NgÃ y nháº­p: {{ $order->created_at->format('d/m/Y H:i') }}</small>
                         </h4>
                     </div>
                 </div>
 
-                <!-- Thông tin chung -->
+                <!-- ThÃ´ng tin chung -->
                 <div class="row invoice-info mt-3">
                     <div class="col-sm-4 invoice-col border-right">
-                        <strong>NHÀ CUNG CẤP</strong>
+                        <strong>NHÃ€ CUNG Cáº¤P</strong>
                         <address>
                             <b class="text-primary">{{ $order->supplier->name }}</b><br>
-                            SĐT: {{ $order->supplier->phone }}<br>
-                            Địa chỉ: {{ $order->supplier->address }}
+                            SÄT: {{ $order->supplier->phone }}<br>
+                            Äá»‹a chá»‰: {{ $order->supplier->address }}
                         </address>
                     </div>
                     <div class="col-sm-4 invoice-col border-right pl-4">
-                        <strong>THANH TOÁN</strong>
+                        <strong>THANH TOÃN</strong>
                         <address>
-                            Tài khoản chi: {{ $order->account->name ?? 'N/A' }}<br>
-                            Đã trả NCC: <b class="text-success">{{ number_format($order->paid_amount) }} đ</b><br>
-                            Còn nợ: <b class="text-danger">{{ number_format($order->total_final_amount - $order->paid_amount) }} đ</b>
+                            TÃ i khoáº£n chi: {{ $order->account->name ?? 'N/A' }}<br>
+                            ÄÃ£ tráº£ NCC: <b class="text-success">{{ number_format($order->paid_amount) }} Ä‘</b><br>
+                            CÃ²n ná»£: <b class="text-danger">{{ number_format($order->total_final_amount - $order->paid_amount) }} Ä‘</b>
                         </address>
                     </div>
                     <div class="col-sm-4 invoice-col pl-4">
-                        <strong>MÃ PHIẾU: #PN{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</strong><br>
+                        <strong>MÃƒ PHIáº¾U: #PN{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</strong><br>
                         <br>
-                        <b>Tổng tiền hàng:</b> {{ number_format($order->total_product_value) }} đ<br>
-                        <b>Phí phát sinh:</b> <span class="text-primary">+{{ number_format($order->extra_cost) }} đ</span><br>
-                        <b class="h4 text-danger">TỔNG CỘNG: {{ number_format($order->total_final_amount) }} đ</b>
+                        <b>Tá»•ng tiá»n hÃ ng:</b> {{ number_format($order->total_product_value) }} Ä‘<br>
+                        <b>PhÃ­ phÃ¡t sinh:</b> <span class="text-primary">+{{ number_format($order->extra_cost) }} Ä‘</span><br>
+                        <b class="h4 text-danger">Tá»”NG Cá»˜NG: {{ number_format($order->total_final_amount) }} Ä‘</b>
+                        <div class="mt-2">
+                            <span class="badge badge-pill badge-light border text-muted px-3 py-2">
+                                Đã có {{ $purchaseReturnCount ?? 0 }} phiếu hoàn trả
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Bảng chi tiết sản phẩm -->
+                <!-- Báº£ng chi tiáº¿t sáº£n pháº©m -->
                 <div class="row mt-4">
                     <div class="col-12 table-responsive">
                         <table class="table table-bordered table-striped">
                             <thead class="bg-light text-13">
                                 <tr>
                                     <th width="50">#</th>
-                                    <th>Sản phẩm</th>
-                                    <th class="text-center">Số lượng</th>
-                                    <th class="text-right">Giá nhập (NCC)</th>
-                                    <th class="text-right text-primary">Phí phân bổ</th>
-                                    <th class="text-right text-danger">Giá nhập thực tế</th>
-                                    <th class="text-right">Thành tiền</th>
+                                    <th>Sáº£n pháº©m</th>
+                                    <th class="text-center">Sá»‘ lÆ°á»£ng</th>
+                                    <th class="text-right">GiÃ¡ nháº­p (NCC)</th>
+                                    <th class="text-right text-primary">PhÃ­ phÃ¢n bá»•</th>
+                                    <th class="text-right text-danger">GiÃ¡ nháº­p thá»±c táº¿</th>
+                                    <th class="text-right">ThÃ nh tiá»n</th>
                                 </tr>
                             </thead>
                             <tbody class="text-13">
@@ -68,10 +73,10 @@
                                         <small class="text-muted">SKU: {{ $item->product->sku }}</small>
                                     </td>
                                     <td class="text-center font-weight-bold">{{ $item->quantity }}</td>
-                                    <td class="text-right">{{ number_format($item->import_price) }} đ</td>
-                                    <td class="text-right text-primary">+{{ number_format($item->allocated_cost) }} đ</td>
-                                    <td class="text-right text-danger font-weight-bold">{{ number_format($item->final_unit_cost) }} đ</td>
-                                    <td class="text-right font-weight-bold">{{ number_format($item->quantity * $item->import_price) }} đ</td>
+                                    <td class="text-right">{{ number_format($item->import_price) }} Ä‘</td>
+                                    <td class="text-right text-primary">+{{ number_format($item->allocated_cost) }} Ä‘</td>
+                                    <td class="text-right text-danger font-weight-bold">{{ number_format($item->final_unit_cost) }} Ä‘</td>
+                                    <td class="text-right font-weight-bold">{{ number_format($item->quantity * $item->import_price) }} Ä‘</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -79,36 +84,42 @@
                     </div>
                 </div>
 
-                <!-- Chữ ký & Ghi chú -->
+                <!-- Chá»¯ kÃ½ & Ghi chÃº -->
                 <div class="row mt-4">
                     <div class="col-6">
-                        <p class="lead">Ghi chú:</p>
+                        <p class="lead">Ghi chÃº:</p>
                         <div class="text-muted well well-sm shadow-none p-2 border rounded" style="min-height: 100px;">
-                            {{ $order->note ?? 'Không có ghi chú.' }}
+                            {{ $order->note ?? 'KhÃ´ng cÃ³ ghi chÃº.' }}
                         </div>
                     </div>
                     <div class="col-6 text-center">
                         <div class="row" style="margin-top: 50px;">
                             <div class="col-6">
-                                <b>Người lập phiếu</b><br><br><br>
-                                <i>(Ký và ghi rõ họ tên)</i>
+                                <b>NgÆ°á»i láº­p phiáº¿u</b><br><br><br>
+                                <i>(KÃ½ vÃ  ghi rÃµ há» tÃªn)</i>
                             </div>
                             <div class="col-6">
-                                <b>Thủ kho</b><br><br><br>
-                                <i>(Ký và ghi rõ họ tên)</i>
+                                <b>Thá»§ kho</b><br><br><br>
+                                <i>(KÃ½ vÃ  ghi rÃµ há» tÃªn)</i>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Nút thao tác -->
+                <!-- NÃºt thao tÃ¡c -->
                 <div class="row no-print mt-5 pt-3 border-top">
                     <div class="col-12 text-right">
+                        <a href="{{ route('purchase-returns.index', ['purchase_order_id' => $order->id]) }}" class="btn btn-light border text-secondary mr-2">
+                            <i class="fas fa-history"></i> Xem phiáº¿u hoÃ n tráº£
+                        </a>
+                        <a href="{{ route('purchase-returns.create', ['purchase_order_id' => $order->id]) }}" class="btn btn-danger mr-2">
+                            <i class="fas fa-undo-alt"></i> HoÃ n tráº£ NCC
+                        </a>
                         <a href="{{ route('imports.index') }}" class="btn btn-default">
-                            <i class="fas fa-arrow-left"></i> Quay lại danh sách
+                            <i class="fas fa-arrow-left"></i> Quay láº¡i danh sÃ¡ch
                         </a>
                         <button onclick="window.print()" class="btn btn-primary ml-2">
-                            <i class="fas fa-print"></i> In phiếu nhập kho
+                            <i class="fas fa-print"></i> In phiáº¿u nháº­p kho
                         </button>
                     </div>
                 </div>

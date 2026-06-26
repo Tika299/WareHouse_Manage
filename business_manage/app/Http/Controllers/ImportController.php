@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Product, PurchaseOrder, PurchaseDetail, Account, Supplier, CreditLog, StockLog};
+use App\Models\{Product, PurchaseOrder, PurchaseDetail, PurchaseReturn, Account, Supplier, CreditLog, StockLog};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ImportController extends Controller
 {
@@ -13,10 +14,8 @@ class ImportController extends Controller
     {
         $query = PurchaseOrder::with('supplier');
 
-        //1. Tìm kiếm theo mã phiếu
         if ($request->filled('search')) {
             $search = $request->input('search');
-            //Loại bỏ chữ #PN
             $searchId = preg_replace('/[^0-9]/', '', $search);
 
             $query->where(function ($q) use ($searchId) {
@@ -24,12 +23,10 @@ class ImportController extends Controller
             });
         }
 
-        //2. Lọc theo nhà cung cấp
         $query->when($request->supplier_id, function ($q) {
             return $q->where('supplier_id', request('supplier_id'));
         });
 
-        //3. Lọc theo Trạng thái thanh toán
         if ($request->filled('status')) {
             if ($request->status == 'paid') {
                 $query->whereColumn('paid_amount', '>=', 'total_final_amount');
@@ -38,7 +35,6 @@ class ImportController extends Controller
             }
         }
 
-        // 4. Lọc theo Khoảng ngày (Từ ngày - Đến ngày)
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [
                 $request->start_date . ' 00:00:00',
@@ -46,16 +42,11 @@ class ImportController extends Controller
             ]);
         }
 
-        // Thực hiện truy vấn và phân trang
         $orders = $query->latest()->paginate(15);
-
-        // Giữ lại các tham số lọc khi nhấn sang trang 2, 3...
         $orders->appends($request->all());
 
-        // Lấy danh sách NCC để đổ vào dropdown lọc
         $selectedSupplier = null;
         if ($request->filled('supplier_id')) {
-            // Tìm NCC dựa trên ID từ link URL
             $selectedSupplier = \App\Models\Supplier::find($request->supplier_id);
         }
 
@@ -75,35 +66,75 @@ class ImportController extends Controller
 
     public function store(Request $request)
     {
-        return DB::transaction(function () use ($request) {
-            // 1. Tạo phiếu nhập gốc
+        $validator = Validator::make($request->all(), [
+            'supplier_id' => 'required|exists:suppliers,id',
+            'account_id' => 'required|exists:accounts,id',
+            'total_product_value' => 'required|numeric|gt:0',
+            'extra_cost' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|numeric|gt:0',
+            'items.*.import_price' => 'required|numeric|min:0',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $totalProductValue = (float) $request->input('total_product_value', 0);
+            $extraCost = (float) $request->input('extra_cost', 0);
+            $paidAmount = (float) $request->input('paid_amount', 0);
+            $totalFinalAmount = $totalProductValue + $extraCost;
+
+            if ($paidAmount > $totalFinalAmount) {
+                $validator->errors()->add('paid_amount', 'Sá»‘ tiá»n thanh toÃ¡n khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ tá»•ng thanh toÃ¡n.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+        $totalProductValue = (float) $validated['total_product_value'];
+        $extraCost = (float) ($validated['extra_cost'] ?? 0);
+        $paidAmount = (float) ($validated['paid_amount'] ?? 0);
+
+        if ($totalProductValue <= 0) {
+            return back()
+                ->withErrors(['total_product_value' => 'Tá»•ng tiá»n hÃ ng pháº£i lá»›n hÆ¡n 0 Ä‘á»ƒ trÃ¡nh lá»—i chia cho 0.'])
+                ->withInput();
+        }
+
+        return DB::transaction(function () use ($validated, $totalProductValue, $extraCost, $paidAmount) {
             $order = PurchaseOrder::create([
-                'supplier_id' => $request->supplier_id,
-                'account_id' => $request->account_id,
-                'total_product_value' => $request->total_product_value,
-                'extra_cost' => $request->extra_cost ?? 0,
-                'total_final_amount' => $request->total_product_value + ($request->extra_cost ?? 0),
-                'paid_amount' => $request->paid_amount ?? 0,
+                'supplier_id' => $validated['supplier_id'],
+                'account_id' => $validated['account_id'],
+                'total_product_value' => $totalProductValue,
+                'extra_cost' => $extraCost,
+                'total_final_amount' => $totalProductValue + $extraCost,
+                'paid_amount' => $paidAmount,
             ]);
 
-            foreach ($request->items as $item) {
-                $product = Product::lockForUpdate()->find($item['product_id']);
+            foreach ($validated['items'] as $item) {
+                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
 
-                // Tính giá nhập thực tế sau phân bổ phí ship (giữ nguyên logic cũ)
-                $ratio = ($item['quantity'] * $item['import_price']) / $request->total_product_value;
-                $allocated = ($ratio * $request->extra_cost) / $item['quantity'];
-                $final_unit_cost = $item['import_price'] + $allocated;
+                if ($totalProductValue <= 0) {
+                    throw new \Exception('Tá»•ng tiá»n hÃ ng pháº£i lá»›n hÆ¡n 0 Ä‘á»ƒ tÃ­nh giÃ¡ vá»‘n.');
+                }
 
-                // Tính BQGQ cho BIẾN THỂ này
-                $old_value = $product->stock_quantity * $product->cost_price;
-                $new_value = $item['quantity'] * $final_unit_cost;
-                $new_qty = $product->stock_quantity + $item['quantity'];
-                $new_cost_price = ($old_value + $new_value) / $new_qty;
+                $ratio = ($item['quantity'] * $item['import_price']) / $totalProductValue;
+                $allocated = ($ratio * $extraCost) / $item['quantity'];
+                $finalUnitCost = $item['import_price'] + $allocated;
+
+                $oldValue = $product->stock_quantity * $product->cost_price;
+                $newValue = $item['quantity'] * $finalUnitCost;
+                $newQty = $product->stock_quantity + $item['quantity'];
+                $newCostPrice = ($oldValue + $newValue) / $newQty;
 
                 $product->update([
-                    'cost_price' => $new_cost_price,
-                    'stock_quantity' => $new_qty,
-                    // Lưu ý: Tuyệt đối không cập nhật giá vốn của sản phẩm CHA
+                    'cost_price' => $newCostPrice,
+                    'stock_quantity' => $newQty,
                 ]);
 
                 StockLog::create([
@@ -111,15 +142,14 @@ class ImportController extends Controller
                     'ref_type' => 'import',
                     'ref_id' => $order->id,
                     'change_qty' => $item['quantity'],
-                    'final_qty' => $new_qty
+                    'final_qty' => $newQty
                 ]);
             }
 
-            // 6. Xử lý Nợ NCC & Nhật ký nợ (Credit Log)
             $debt = $order->total_final_amount - $order->paid_amount;
             if ($debt > 0) {
-                $supplier = Supplier::find($request->supplier_id);
-                $old_debt = $supplier->total_debt;
+                $supplier = Supplier::findOrFail($validated['supplier_id']);
+                $oldDebt = $supplier->total_debt;
                 $supplier->increment('total_debt', $debt);
 
                 CreditLog::create([
@@ -128,29 +158,113 @@ class ImportController extends Controller
                     'ref_type' => 'order',
                     'ref_id' => $order->id,
                     'change_amount' => $debt,
-                    'new_balance' => $old_debt + $debt,
-                    'note' => 'Nợ từ phiếu nhập hàng #' . $order->id
+                    'new_balance' => $oldDebt + $debt,
+                    'note' => 'Ná»£ tá»« phiáº¿u nháº­p hÃ ng #' . $order->id
                 ]);
             }
 
-            // 7. Trừ tiền tài khoản nếu có thanh toán
             if ($order->paid_amount > 0) {
-                Account::find($request->account_id)->decrement('current_balance', $order->paid_amount);
+                Account::findOrFail($validated['account_id'])->decrement('current_balance', $order->paid_amount);
             }
 
-            return redirect()->route('imports.index')->with('msg', 'Nhập hàng và tính lại giá vốn thành công!');
+            return redirect()->route('imports.index')->with('msg', 'Nháº­p hÃ ng vÃ  tÃ­nh láº¡i giÃ¡ vá»‘n thÃ nh cÃ´ng!');
         });
     }
 
-    //Hiển thị chi tiết phiếu nhập
     public function show($id)
     {
-        // Load phiếu nhập kèm thông tin NCC, tài khoản chi và chi tiết từng sản phẩm
         $order = PurchaseOrder::with(['supplier', 'account', 'details.product'])->findOrFail($id);
+        $purchaseReturnCount = PurchaseReturn::where('purchase_order_id', $order->id)->count();
         return view('imports.show', [
             'order' => $order,
+            'purchaseReturnCount' => $purchaseReturnCount,
             'activeGroup' => 'inventory',
             'activeName' => 'imports'
         ]);
+    }
+
+    public function payDebt(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|gt:0',
+        ]);
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        return DB::transaction(function () use ($request, $id) {
+            $import = PurchaseOrder::lockForUpdate()->findOrFail($id);
+            $supplier = Supplier::lockForUpdate()->findOrFail($import->supplier_id);
+            $account = Account::lockForUpdate()->findOrFail($import->account_id);
+
+            $remainingDebt = $import->total_final_amount - $import->paid_amount;
+            $amount = (float) $request->amount;
+
+            if ($amount > $remainingDebt) {
+                return back()
+                    ->withErrors([
+                        'amount' => 'Sá»‘ tiá»n thanh toÃ¡n khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ cÃ´ng ná»£ cÃ²n láº¡i: ' . number_format($remainingDebt) . ' Ä‘.'
+                    ])
+                    ->withInput();
+            }
+
+            if ($remainingDebt <= 0) {
+                return back()
+                    ->withErrors([
+                        'amount' => 'Phiáº¿u nháº­p nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘á»§, khÃ´ng thá»ƒ thanh toÃ¡n thÃªm.'
+                    ])
+                    ->withInput();
+            }
+
+            $newPaidAmount = $import->paid_amount + $amount;
+            $newSupplierDebt = $supplier->total_debt - $amount;
+            $newAccountBalance = $account->current_balance - $amount;
+
+            if ($newSupplierDebt < 0) {
+                throw new \Exception('CÃ´ng ná»£ nhÃ  cung cáº¥p khÃ´ng Ä‘Æ°á»£c Ã¢m.');
+            }
+
+            if ($newAccountBalance < 0) {
+                throw new \Exception('Sá»‘ dÆ° tÃ i khoáº£n khÃ´ng Ä‘á»§ Ä‘á»ƒ thanh toÃ¡n.');
+            }
+
+            $voucher = \App\Models\CashVoucher::create([
+                'voucher_type' => 'payment',
+                'category' => 'debt_supplier',
+                'account_id' => $account->id,
+                'supplier_id' => $supplier->id,
+                'amount' => $amount,
+                'note' => 'Thanh toÃ¡n bá»• sung cÃ´ng ná»£ phiáº¿u nháº­p #' . $import->id,
+            ]);
+
+            $import->update([
+                'paid_amount' => $newPaidAmount,
+            ]);
+
+            $supplier->update([
+                'total_debt' => $newSupplierDebt,
+            ]);
+
+            $account->update([
+                'current_balance' => $newAccountBalance,
+            ]);
+
+            CreditLog::create([
+                'target_type' => 'supplier',
+                'target_id' => $supplier->id,
+                'ref_type' => 'voucher',
+                'ref_id' => $voucher->id,
+                'change_amount' => -$amount,
+                'new_balance' => $newSupplierDebt,
+                'note' => 'Thanh toÃ¡n bá»• sung cÃ´ng ná»£ phiáº¿u nháº­p #' . $import->id,
+            ]);
+
+            return redirect()
+                ->route('imports.show', $import->id)
+                ->with('msg', 'ÄÃ£ thanh toÃ¡n bá»• sung cÃ´ng ná»£ thÃ nh cÃ´ng!');
+        });
     }
 }

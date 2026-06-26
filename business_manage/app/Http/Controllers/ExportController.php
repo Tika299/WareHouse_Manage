@@ -338,57 +338,54 @@ class ExportController extends Controller
         $request->validate([
             'customer_id' => 'required',
             'account_id' => 'required',
-            'shipping_unit_id' => 'required', // Yêu cầu chọn từ Form
+            'shipping_unit_id' => 'required',
             'export_items' => 'required|array',
             'import_items' => 'required|array',
         ]);
 
         return DB::transaction(function () use ($request) {
-            // --- 1. Tính toán giá trị ---
-            $totalExport = collect($request->export_items)->sum(fn($item) => $item['quantity'] * $item['unit_price']);
-            $totalImport = collect($request->import_items)->sum(fn($item) => $item['quantity'] * $item['buyback_price']);
+            $totalExport = collect($request->export_items)
+                ->sum(fn($item) => $item['quantity'] * $item['unit_price']);
+
+            $totalImport = collect($request->import_items)
+                ->sum(fn($item) => $item['quantity'] * $item['buyback_price']);
+
             $difference = $totalExport - $totalImport;
 
-            // --- 2. Tạo Đơn xuất hàng ---
             $salesOrder = SalesOrder::create([
                 'customer_id' => $request->customer_id,
                 'account_id' => $request->account_id,
-                'shipping_unit_id' => $request->shipping_unit_id, // Lấy từ Form thay vì để số 1
+                'shipping_unit_id' => $request->shipping_unit_id,
                 'total_product_amount' => $totalExport,
                 'total_final_amount' => $totalExport,
                 'paid_amount' => $request->paid_amount ?? 0,
-                'order_type' => 'barter'
+                'order_type' => 'barter',
             ]);
 
-            // Trừ kho hàng xuất (Giữ nguyên logic cũ nhưng đảm bảo dùng biến salesOrder)
             foreach ($request->export_items as $item) {
-                $p = $this->performStockDeduction($item['product_id'], $item['quantity'], $salesOrder->id, 'barter');
+                $product = $this->performStockDeduction(
+                    $item['product_id'],
+                    $item['quantity'],
+                    $salesOrder->id,
+                    'barter'
+                );
+
                 SalesDetail::create([
                     'sales_order_id' => $salesOrder->id,
-                    'product_id' => $p->id,
+                    'product_id' => $product->id,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'cost_price_at_sale' => $p->cost_price
-                ]);
-                $p->decrement('stock_quantity', $item['quantity']);
-                StockLog::create([
-                    'product_id' => $p->id,
-                    'ref_type' => 'barter',
-                    'ref_id' => $salesOrder->id,
-                    'change_qty' => -$item['quantity'],
-                    'final_qty' => $p->stock_quantity
+                    'cost_price_at_sale' => $product->cost_price,
                 ]);
             }
 
-            // --- 3. Xử lý hàng THU VỀ (Hạch toán Nhập kho) ---
-            // Lấy Nhà cung cấp đầu tiên hoặc tạo một NCC tên "Khách hàng đổi trả" nếu chưa có
             $supplier = Supplier::firstOrCreate(
-                ['name' => 'Hệ thống đổi trả'], // Tìm NCC tên này
-                ['phone' => '0000', 'address' => 'Nội bộ'] // Nếu ko có thì tạo mới
+                ['name' => 'Hệ thống đổi trả'],
+                ['phone' => '0000', 'address' => 'Nội bộ']
             );
 
             $purchaseOrder = PurchaseOrder::create([
-                'supplier_id' => $supplier->id, // Lấy ID động từ DB
+                'supplier_id' => $supplier->id,
                 'account_id' => $request->account_id,
                 'total_product_value' => $totalImport,
                 'total_final_amount' => $totalImport,
@@ -396,38 +393,40 @@ class ExportController extends Controller
             ]);
 
             foreach ($request->import_items as $item) {
-                $p = Product::lockForUpdate()->find($item['product_id']);
+                $product = Product::lockForUpdate()->find($item['product_id']);
 
-                // Tính lại giá vốn BQGQ cho hàng thu về
-                $oldValue = $p->stock_quantity * $p->cost_price;
+                $oldValue = $product->stock_quantity * $product->cost_price;
                 $newValue = $item['quantity'] * $item['buyback_price'];
-                $newQty = $p->stock_quantity + $item['quantity'];
+                $newQty = $product->stock_quantity + $item['quantity'];
                 $newCost = $newQty > 0 ? ($oldValue + $newValue) / $newQty : $item['buyback_price'];
 
-                $p->update(['cost_price' => $newCost, 'stock_quantity' => $newQty]);
+                $product->update([
+                    'cost_price' => $newCost,
+                    'stock_quantity' => $newQty,
+                ]);
 
                 PurchaseDetail::create([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $p->id,
+                    'product_id' => $product->id,
                     'quantity' => $item['quantity'],
                     'import_price' => $item['buyback_price'],
                     'allocated_cost' => 0,
-                    'final_unit_cost' => $item['buyback_price']
+                    'final_unit_cost' => $item['buyback_price'],
                 ]);
 
                 StockLog::create([
-                    'product_id' => $p->id,
+                    'product_id' => $product->id,
                     'ref_type' => 'barter',
                     'ref_id' => $purchaseOrder->id,
                     'change_qty' => $item['quantity'],
-                    'final_qty' => $newQty
+                    'final_qty' => $newQty,
                 ]);
             }
 
-            // --- 4. Cập nhật NỢ GỘP Khách hàng ---
             $finalChange = $difference - ($request->paid_amount ?? 0);
             $customer = Customer::find($request->customer_id);
             $oldDebt = $customer->total_debt;
+
             $customer->increment('total_debt', $finalChange);
 
             CreditLog::create([
@@ -437,10 +436,12 @@ class ExportController extends Controller
                 'ref_id' => $salesOrder->id,
                 'change_amount' => $finalChange,
                 'new_balance' => $oldDebt + $finalChange,
-                'note' => "Đổi hàng đơn #DH{$salesOrder->id}. Xuất: " . number_format($totalExport) . "đ, Thu: " . number_format($totalImport) . "đ"
+                'note' => "Đổi hàng đơn #DH{$salesOrder->id}. Xuất: " . number_format($totalExport) . "đ, Thu: " . number_format($totalImport) . "đ",
             ]);
 
-            return redirect()->route('returnforms.index')->with('msg', 'Giao dịch đổi hàng hoàn tất!');
+            return redirect()
+                ->route('returnforms.index')
+                ->with('msg', 'Giao dịch đổi hàng hoàn tất!');
         });
     }
 

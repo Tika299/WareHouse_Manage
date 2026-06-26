@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Product, Customer, CustomerReturn, CustomerReturnDetail, StockLog, CreditLog, SalesOrder};
+use App\Models\{Product, Customer, CustomerReturn, CustomerReturnDetail, StockLog, CreditLog, SalesOrder, SalesDetail};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -109,66 +109,121 @@ class CustomerReturnController extends Controller
     {
         $request->validate([
             'sales_order_id' => 'required|exists:sales_orders,id',
-            'items' => 'required|array'
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.refund_price' => 'required|numeric|min:0',
         ]);
 
-        return DB::transaction(function () use ($request) {
-            $order = SalesOrder::findOrFail($request->sales_order_id);
-            $totalReturnValue = 0;
+        try {
+            return DB::transaction(function () use ($request) {
+                $order = SalesOrder::lockForUpdate()->findOrFail($request->sales_order_id);
 
-            // 1. Tạo phiếu trả hàng
-            $return = CustomerReturn::create([
-                'customer_id' => $order->customer_id,
-                'sales_order_id' => $order->id,
-                'user_id' => auth()->id(),
-                'total_return_value' => 0, // Sẽ cập nhật sau
-                'note' => $request->note
-            ]);
+                $soldQtyByProduct = SalesDetail::query()
+                    ->where('sales_order_id', $order->id)
+                    ->select('product_id', DB::raw('SUM(quantity) as sold_qty'))
+                    ->groupBy('product_id')
+                    ->pluck('sold_qty', 'product_id')
+                    ->map(fn($qty) => (int) $qty)
+                    ->all();
 
-            foreach ($request->items as $item) {
-                if ($item['quantity'] <= 0) continue;
+                $requestedQtyByProduct = [];
+                foreach ($request->items as $index => $item) {
+                    $productId = (int) $item['product_id'];
+                    $quantity = (int) $item['quantity'];
 
-                $totalReturnValue += $item['quantity'] * $item['refund_price'];
+                    if (!array_key_exists($productId, $soldQtyByProduct)) {
+                        throw new \Exception(
+                            "Dòng #" . ($index + 1) . ": product_id {$productId} không tồn tại trong chi tiết đơn hàng gốc."
+                        );
+                    }
 
-                // 2. Lưu chi tiết
-                CustomerReturnDetail::create([
-                    'customer_return_id' => $return->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'refund_price' => $item['refund_price'],
+                    $requestedQtyByProduct[$productId] = ($requestedQtyByProduct[$productId] ?? 0) + $quantity;
+
+                    if ($requestedQtyByProduct[$productId] > $soldQtyByProduct[$productId]) {
+                        throw new \Exception(
+                            "Dòng #" . ($index + 1) . ": số lượng trả của product_id {$productId} vượt quá số lượng đã mua. " .
+                                "Đã mua {$soldQtyByProduct[$productId]}, đang trả {$requestedQtyByProduct[$productId]}."
+                        );
+                    }
+                }
+
+                $return = CustomerReturn::create([
+                    'customer_id' => $order->customer_id,
+                    'sales_order_id' => $order->id,
+                    'user_id' => auth()->id(),
+                    'total_return_value' => 0,
+                    'note' => $request->note,
                 ]);
 
-                // 3. Tăng tồn kho & Thẻ kho
-                $product = Product::find($item['product_id']);
-                $product->increment('stock_quantity', $item['quantity']);
+                $totalReturnValue = 0;
 
-                StockLog::create([
-                    'product_id' => $product->id,
-                    'ref_type' => 'import',
+                foreach ($request->items as $item) {
+                    $productId = (int) $item['product_id'];
+                    $quantity = (int) $item['quantity'];
+                    $refundPrice = (float) $item['refund_price'];
+
+                    $totalReturnValue += $quantity * $refundPrice;
+
+                    CustomerReturnDetail::create([
+                        'customer_return_id' => $return->id,
+                        'product_id' => $productId,
+                        'quantity' => $quantity,
+                        'refund_price' => $refundPrice,
+                    ]);
+
+                    $product = Product::lockForUpdate()->findOrFail($productId);
+                    $newStockQty = $product->stock_quantity + $quantity;
+                    $product->update(['stock_quantity' => $newStockQty]);
+
+                    StockLog::create([
+                        'product_id' => $product->id,
+                        'ref_type' => 'import',
+                        'ref_id' => $return->id,
+                        'change_qty' => $quantity,
+                        'final_qty' => $newStockQty,
+                    ]);
+                }
+
+                $return->update(['total_return_value' => $totalReturnValue]);
+
+                $customer = Customer::lockForUpdate()->findOrFail($order->customer_id);
+                $oldDebt = $customer->total_debt;
+                $newDebt = $oldDebt - $totalReturnValue;
+                $customer->update(['total_debt' => $newDebt]);
+
+                CreditLog::create([
+                    'target_type' => 'customer',
+                    'target_id' => $customer->id,
+                    'ref_type' => 'voucher',
                     'ref_id' => $return->id,
-                    'change_qty' => $item['quantity'],
-                    'final_qty' => $product->stock_quantity
+                    'change_amount' => -$totalReturnValue,
+                    'new_balance' => $newDebt,
+                    'note' => 'Trả hàng từ đơn #DH' . $order->id,
                 ]);
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Đã nhận hàng trả và giảm nợ cho khách!',
+                        'data' => $return,
+                    ], 201);
+                }
+
+                return redirect()
+                    ->route('customer_returns.index')
+                    ->with('msg', 'Đã nhận hàng trả và giảm nợ cho khách!');
+            });
+        } catch (\Throwable $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Validation hoặc xử lý hoàn hàng thất bại.',
+                    'error' => $e->getMessage(),
+                ], 422);
             }
 
-            $return->update(['total_return_value' => $totalReturnValue]);
-
-            // 4. Giảm nợ gộp khách hàng
-            $customer = $order->customer;
-            $oldDebt = $customer->total_debt;
-            $customer->decrement('total_debt', $totalReturnValue);
-
-            CreditLog::create([
-                'target_type' => 'customer',
-                'target_id' => $customer->id,
-                'ref_type' => 'voucher',
-                'ref_id' => $return->id,
-                'change_amount' => -$totalReturnValue,
-                'new_balance' => $oldDebt - $totalReturnValue,
-                'note' => 'Trả hàng từ đơn #DH' . $order->id
-            ]);
-
-            return redirect()->route('customer_returns.index')->with('msg', 'Đã nhận hàng trả và giảm nợ cho khách!');
-        });
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
     }
 }

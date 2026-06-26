@@ -115,12 +115,13 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                         <li class="nav-item dropdown">
                             <a href="#" data-toggle="dropdown" class="nav-link dropdown-toggle navbar-head {{ $activeGroup == 'finance' ? 'active-navbar' : '' }}">TÀI CHÍNH</a>
                             <ul class="dropdown-menu border-0 shadow">
-                                <li><a href="{{ route('vouchers.index') }}" class="dropdown-item">Phiếu Thu / Phiếu Chi</a></li>
-                                <li><a href="{{ route('accounts.index') }}" class="dropdown-item">Sổ quỹ (Tiền mặt/Ngân hàng)</a></li>
-                                <li><a href="{{ route('providers.index') }}" class="dropdown-item">Nhà cung cấp</a></li>
-                                <li><a href="{{ route('credit_logs.index') }}" class="dropdown-item">Lịch sử nợ</a></li>
-                            </ul>
-                        </li>
+                        <li><a href="{{ route('vouchers.index') }}" class="dropdown-item">Phiếu Thu / Phiếu Chi</a></li>
+                        <li><a href="{{ route('accounts.index') }}" class="dropdown-item">Sổ quỹ (Tiền mặt/Ngân hàng)</a></li>
+                        <li><a href="{{ route('providers.index') }}" class="dropdown-item">Nhà cung cấp</a></li>
+                        <li><a href="{{ route('purchase-returns.index') }}" class="dropdown-item">Hoàn trả NCC</a></li>
+                        <li><a href="{{ route('credit_logs.index') }}" class="dropdown-item">Lịch sử nợ</a></li>
+                    </ul>
+                </li>
                         @endif
 
                         {{-- BÁO CÁO --}}
@@ -186,6 +187,7 @@ $isKho = auth()->user()->hasAnyRole(['Admin', 'Quản lý kho']);
                 <a href="{{ route('vouchers.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'vouchers' ? 'active' : '' }}">Thu / Chi</button></a>
                 <a href="{{ route('accounts.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'accounts' ? 'active' : '' }}">Sổ quỹ</button></a>
                 <a href="{{ route('providers.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'providers' ? 'active' : '' }}">Nhà cung cấp</button></a>
+                <a href="{{ route('purchase-returns.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'purchase_returns' ? 'active' : '' }}">Hoàn trả NCC</button></a>
                 <a href="{{ route('credit_logs.index') }}"><button class="btn btn-sm btn-outline-secondary mr-2 sub-nav-btn {{ $activeName == 'credit_logs' ? 'active' : '' }}">Lịch sử nợ</button></a>
                 @endif
 

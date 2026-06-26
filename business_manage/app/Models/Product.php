@@ -5,10 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class Product extends Model
 {
     use HasFactory;
+    public function scopeWithEffectiveStock($query)
+    {
+        $comboStockSub = DB::table('combo_items as ci')
+            ->join('products as c', 'c.id', '=', 'ci.product_id')
+            ->selectRaw('ci.combo_id, COALESCE(MIN(FLOOR(c.stock_quantity / ci.quantity)), 0) as combo_stock')
+            ->groupBy('ci.combo_id');
+
+        return $query
+            ->leftJoinSub($comboStockSub, 'cs', function ($join) {
+                $join->on('products.id', '=', 'cs.combo_id');
+            })
+            ->select('products.*')
+            ->selectRaw("
+            CASE
+                WHEN products.is_combo = 1 THEN COALESCE(cs.combo_stock, 0)
+                ELSE products.stock_quantity
+            END as effective_stock
+        ");
+    }
 
     protected $fillable = [
         'is_combo',

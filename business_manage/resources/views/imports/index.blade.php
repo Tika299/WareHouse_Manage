@@ -99,6 +99,9 @@
                         <a href="{{ route('imports.show', $order->id) }}" class="btn btn-xs btn-default" title="Xem chi tiết">
                             <i class="fas fa-eye"></i>
                         </a>
+                        <a href="{{ route('purchase-returns.create', ['purchase_order_id' => $order->id]) }}" class="btn btn-xs btn-warning" title="Hoàn trả NCC">
+                            <i class="fas fa-undo-alt"></i>
+                        </a>
                         {{-- Bạn cũng có thể thêm nút in nhanh ở đây --}}
                         <button class="btn btn-xs btn-default" title="In phiếu" onclick="window.location.href=`{{ route('imports.show', $order->id) }}`"><i class="fas fa-print"></i></button>
                     </td>

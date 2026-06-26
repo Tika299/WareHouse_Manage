@@ -18,6 +18,7 @@ use App\Http\Controllers\InternalTransferController;
 use App\Http\Controllers\ProviderController;
 use App\Http\Controllers\CreditLogController;
 use App\Http\Controllers\CustomerReturnController;
+use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProfileController;
@@ -102,7 +103,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/providers/import', [ProviderController::class, 'import'])
             ->name('providers.import');
         Route::resource('providers', ProviderController::class);
+        Route::post('/imports/{id}/pay-debt', [ImportController::class, 'payDebt'])->name('imports.payDebt');
         Route::get('/credit-logs', [CreditLogController::class, 'index'])->name('credit_logs.index');
+        Route::get('/purchase-returns', [PurchaseReturnController::class, 'index'])->name('purchase-returns.index');
+        Route::get('/purchase-returns/create', [PurchaseReturnController::class, 'create'])->name('purchase-returns.create');
+        Route::post('/purchase-returns', [PurchaseReturnController::class, 'store'])->name('purchase-returns.store');
+        Route::get('/purchase-returns/{id}', [PurchaseReturnController::class, 'show'])->name('purchase-returns.show');
+        Route::get('/purchase-returns/search-orders', [PurchaseReturnController::class, 'searchOrdersAjax'])->name('purchase-returns.searchOrdersAjax');
+        Route::get('/purchase-returns/get-order-details/{id}', [PurchaseReturnController::class, 'getOrderDetails'])->name('purchase-returns.getOrderDetails');
     });
 
     // --- NHÓM BÁO CÁO ---
