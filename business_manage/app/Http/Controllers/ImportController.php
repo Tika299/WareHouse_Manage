@@ -164,7 +164,12 @@ class ImportController extends Controller
             }
 
             if ($order->paid_amount > 0) {
-                Account::findOrFail($validated['account_id'])->decrement('current_balance', $order->paid_amount);
+                $account = Account::lockForUpdate()->findOrFail($validated['account_id']);
+                if ($account->current_balance < $order->paid_amount) {
+                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? thanh to?n phi?u nh?p n?y.');
+                }
+
+                $account->decrement('current_balance', $order->paid_amount);
             }
 
             return redirect()->route('imports.index')->with('msg', 'Nháº­p hÃ ng vÃ  tÃ­nh láº¡i giÃ¡ vá»‘n thÃ nh cÃ´ng!');

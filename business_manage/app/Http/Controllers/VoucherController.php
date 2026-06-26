@@ -49,13 +49,18 @@ class VoucherController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
-            $voucher = CashVoucher::create($request->all());
-            $account = Account::lockForUpdate()->find($request->account_id);
+            $account = Account::lockForUpdate()->findOrFail($request->account_id);
 
             if ($request->voucher_type == 'receipt') {
+                $voucher = CashVoucher::create($request->all());
                 $account->increment('current_balance', $request->amount);
                 $this->allocateDebt($request->customer_id, $request->amount, 'customer');
             } else {
+                if ($account->current_balance < $request->amount) {
+                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? thanh to?n phi?u chi n?y.');
+                }
+
+                $voucher = CashVoucher::create($request->all());
                 $account->decrement('current_balance', $request->amount);
 
                 if ($request->category == 'debt_supplier' && $request->supplier_id) {
@@ -65,7 +70,7 @@ class VoucherController extends Controller
 
             return redirect()
                 ->route('vouchers.index')
-                ->with('msg', 'Đã lưu phiếu và cập nhật trạng thái nợ!');
+                ->with('msg', '?? l?u phi?u v? c?p nh?t tr?ng th?i n?!');
         });
     }
 

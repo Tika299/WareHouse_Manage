@@ -9,6 +9,16 @@
             <div class="card card-outline card-success shadow">
                 <div class="card-header"><h3 class="card-title font-weight-bold">Lập phiếu tài chính</h3></div>
                 <div class="card-body">
+                    @if ($errors->any())
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 pl-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <div class="form-group">
                         <label>Loại giao dịch</label>
                         <select name="voucher_type" id="voucher_type" class="form-control form-control-lg text-bold">

@@ -490,6 +490,10 @@ class ExportController extends Controller
             $account = Account::lockForUpdate()->find($order->account_id);
 
             if ($account) {
+                if ($account->current_balance < $order->paid_amount) {
+                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? ho?n t?c s? ti?n ?? thu c?a ??n h?ng n?y.');
+                }
+
                 $account->decrement('current_balance', $order->paid_amount);
             }
         }
