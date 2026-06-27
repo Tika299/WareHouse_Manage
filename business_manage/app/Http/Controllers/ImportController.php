@@ -85,7 +85,7 @@ class ImportController extends Controller
             $totalFinalAmount = $totalProductValue + $extraCost;
 
             if ($paidAmount > $totalFinalAmount) {
-                $validator->errors()->add('paid_amount', 'Sá»‘ tiá»n thanh toÃ¡n khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ tá»•ng thanh toÃ¡n.');
+                $validator->errors()->add('paid_amount', 'Số tiền thanh toán không được vượt quá tổng thanh toán.');
             }
         });
 
@@ -102,7 +102,7 @@ class ImportController extends Controller
 
         if ($totalProductValue <= 0) {
             return back()
-                ->withErrors(['total_product_value' => 'Tá»•ng tiá»n hÃ ng pháº£i lá»›n hÆ¡n 0 Ä‘á»ƒ trÃ¡nh lá»—i chia cho 0.'])
+                ->withErrors(['total_product_value' => 'Tổng tiền hàng phải lớn hơn 0 để tránh lỗi chia cho 0.'])
                 ->withInput();
         }
 
@@ -120,12 +120,21 @@ class ImportController extends Controller
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
 
                 if ($totalProductValue <= 0) {
-                    throw new \Exception('Tá»•ng tiá»n hÃ ng pháº£i lá»›n hÆ¡n 0 Ä‘á»ƒ tÃ­nh giÃ¡ vá»‘n.');
+                    throw new \Exception('Tổng tiền hàng phải lớn hơn 0 để tính giá vốn.');
                 }
 
                 $ratio = ($item['quantity'] * $item['import_price']) / $totalProductValue;
                 $allocated = ($ratio * $extraCost) / $item['quantity'];
                 $finalUnitCost = $item['import_price'] + $allocated;
+
+                PurchaseDetail::create([
+                    'purchase_order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'quantity' => $item['quantity'],
+                    'import_price' => $item['import_price'],
+                    'allocated_cost' => $allocated,
+                    'final_unit_cost' => $finalUnitCost,
+                ]);
 
                 $oldValue = $product->stock_quantity * $product->cost_price;
                 $newValue = $item['quantity'] * $finalUnitCost;
@@ -142,7 +151,7 @@ class ImportController extends Controller
                     'ref_type' => 'import',
                     'ref_id' => $order->id,
                     'change_qty' => $item['quantity'],
-                    'final_qty' => $newQty
+                    'final_qty' => $newQty,
                 ]);
             }
 
@@ -150,6 +159,7 @@ class ImportController extends Controller
             if ($debt > 0) {
                 $supplier = Supplier::findOrFail($validated['supplier_id']);
                 $oldDebt = $supplier->total_debt;
+
                 $supplier->increment('total_debt', $debt);
 
                 CreditLog::create([
@@ -159,20 +169,23 @@ class ImportController extends Controller
                     'ref_id' => $order->id,
                     'change_amount' => $debt,
                     'new_balance' => $oldDebt + $debt,
-                    'note' => 'Ná»£ tá»« phiáº¿u nháº­p hÃ ng #' . $order->id
+                    'note' => 'Nợ từ phiếu nhập hàng #' . $order->id,
                 ]);
             }
 
             if ($order->paid_amount > 0) {
                 $account = Account::lockForUpdate()->findOrFail($validated['account_id']);
+
                 if ($account->current_balance < $order->paid_amount) {
-                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? thanh to?n phi?u nh?p n?y.');
+                    throw new \Exception('Số dư sổ quỹ không đủ để thanh toán phiếu nhập này.');
                 }
 
                 $account->decrement('current_balance', $order->paid_amount);
             }
 
-            return redirect()->route('imports.index')->with('msg', 'Nháº­p hÃ ng vÃ  tÃ­nh láº¡i giÃ¡ vá»‘n thÃ nh cÃ´ng!');
+            return redirect()
+                ->route('imports.index')
+                ->with('msg', 'Nhập hàng và tính lại giá vốn thành công!');
         });
     }
 
@@ -211,7 +224,7 @@ class ImportController extends Controller
             if ($amount > $remainingDebt) {
                 return back()
                     ->withErrors([
-                        'amount' => 'Sá»‘ tiá»n thanh toÃ¡n khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ cÃ´ng ná»£ cÃ²n láº¡i: ' . number_format($remainingDebt) . ' Ä‘.'
+                        'amount' => 'Số tiền thanh toán không được vượt quá công nợ còn lại: ' . number_format($remainingDebt) . ' đ.'
                     ])
                     ->withInput();
             }
@@ -219,7 +232,7 @@ class ImportController extends Controller
             if ($remainingDebt <= 0) {
                 return back()
                     ->withErrors([
-                        'amount' => 'Phiáº¿u nháº­p nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘á»§, khÃ´ng thá»ƒ thanh toÃ¡n thÃªm.'
+                        'amount' => 'Phiếu nhập này đã được thanh toán đủ, không thể thanh toán thêm.'
                     ])
                     ->withInput();
             }
@@ -229,11 +242,11 @@ class ImportController extends Controller
             $newAccountBalance = $account->current_balance - $amount;
 
             if ($newSupplierDebt < 0) {
-                throw new \Exception('CÃ´ng ná»£ nhÃ  cung cáº¥p khÃ´ng Ä‘Æ°á»£c Ã¢m.');
+                throw new \Exception('Công nợ nhà cung cấp không được âm.');
             }
 
             if ($newAccountBalance < 0) {
-                throw new \Exception('Sá»‘ dÆ° tÃ i khoáº£n khÃ´ng Ä‘á»§ Ä‘á»ƒ thanh toÃ¡n.');
+                throw new \Exception('Số dư tài khoản không đủ để thanh toán.');
             }
 
             $voucher = \App\Models\CashVoucher::create([
@@ -242,7 +255,7 @@ class ImportController extends Controller
                 'account_id' => $account->id,
                 'supplier_id' => $supplier->id,
                 'amount' => $amount,
-                'note' => 'Thanh toÃ¡n bá»• sung cÃ´ng ná»£ phiáº¿u nháº­p #' . $import->id,
+                'note' => 'Thanh toán bổ sung công nợ phiếu nhập #' . $import->id,
             ]);
 
             $import->update([
@@ -264,12 +277,12 @@ class ImportController extends Controller
                 'ref_id' => $voucher->id,
                 'change_amount' => -$amount,
                 'new_balance' => $newSupplierDebt,
-                'note' => 'Thanh toÃ¡n bá»• sung cÃ´ng ná»£ phiáº¿u nháº­p #' . $import->id,
+                'note' => 'Thanh toán bổ sung công nợ phiếu nhập #' . $import->id,
             ]);
 
             return redirect()
                 ->route('imports.show', $import->id)
-                ->with('msg', 'ÄÃ£ thanh toÃ¡n bá»• sung cÃ´ng ná»£ thÃ nh cÃ´ng!');
+                ->with('msg', 'Đã thanh toán bổ sung công nợ thành công!');
         });
     }
 }

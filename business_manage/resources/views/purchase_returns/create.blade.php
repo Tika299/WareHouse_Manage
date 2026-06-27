@@ -4,7 +4,6 @@
 @section('content')
 <form action="{{ route('purchase-returns.store') }}" method="POST" id="purchaseReturnForm">
     @csrf
-    <input type="hidden" name="purchase_order_id" id="purchase_order_id" value="{{ $selectedOrder->id ?? '' }}">
 
     <div class="row">
         <div class="col-md-8">
@@ -48,11 +47,13 @@
                     <div class="form-group">
                         <label>Chọn phiếu nhập <span class="text-danger">*</span></label>
                         <x-select2-ajax
-                            name="purchase_order_search"
-                            id="purchase_order_search"
+                            name="purchase_order_id"
+                            id="purchase_order_id"
                             :url="route('purchase-returns.searchOrdersAjax')"
-                            placeholder="Nhập mã phiếu hoặc tên NCC..."
-                            required="true" />
+                            placeholder="Nhập mã phiếu (#PN00001) hoặc tên NCC..."
+                            required="true"
+                            :value="$selectedOrder->id ?? null"
+                            :text="$selectedOrder ? ('#PN' . str_pad($selectedOrder->id, 5, '0', STR_PAD_LEFT) . ' - ' . ($selectedOrder->supplier->name ?? 'Không rõ NCC')) : null" />
                     </div>
 
                     <div id="supplier-info" class="alert alert-info py-2" style="display:none">
@@ -74,45 +75,9 @@
                     </button>
                 </div>
             </div>
-
-            <div class="card card-outline card-secondary shadow">
-                <div class="card-body small text-muted">
-                    <div class="font-weight-bold mb-2">Lưu ý nhanh</div>
-                    <ul class="pl-3 mb-0">
-                        <li>Số lượng trả không được vượt quá số lượng đã nhập.</li>
-                        <li>Hệ thống sẽ tự trừ kho và giảm công nợ NCC.</li>
-                        <li>Giá trị hoàn trả được tính theo đơn giá nhập gốc của từng dòng.</li>
-                    </ul>
-                </div>
-            </div>
         </div>
     </div>
 </form>
-
-<div class="modal fade" id="confirmPurchaseReturnModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Xác nhận hoàn trả</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-2">Bạn chắc chắn muốn tạo phiếu hoàn trả này chứ?</p>
-                <div class="alert alert-warning mb-0">
-                    Sau khi lưu, hệ thống sẽ tự trừ kho và giảm công nợ nhà cung cấp.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-danger" id="confirmPurchaseReturnBtn">
-                    <i class="fas fa-check"></i> Đồng ý lưu
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 
 @push('scripts')
@@ -125,6 +90,7 @@
 
     function calculateTotal() {
         let total = 0;
+
         $('#return-body tr').each(function() {
             if ($(this).attr('id') === 'empty-row') return;
 
@@ -138,6 +104,7 @@
 
             const finalQty = parseFloat($(this).find('.qty').val()) || 0;
             const subtotal = finalQty * price;
+
             $(this).find('.subtotal').text(formatMoney(subtotal));
             total += subtotal;
         });
@@ -146,7 +113,6 @@
     }
 
     function renderDetails(order, details) {
-        $('#purchase_order_id').val(order.id);
         $('#supplier-info').show();
         $('#supplier-name-display').text(order.supplier_name);
 
@@ -234,7 +200,7 @@
             allowSubmitPurchaseReturn = false;
         });
 
-        $('#purchase_order_search').on('select2:select', function(e) {
+        $('#purchase_order_id').on('select2:select', function(e) {
             const data = e.params.data;
             loadOrderDetails(data.id);
         });
@@ -256,7 +222,11 @@
         });
 
         @if($selectedOrder)
-            loadOrderDetails({{ $selectedOrder->id }});
+        loadOrderDetails({
+            {
+                $selectedOrder - > id
+            }
+        });
         @endif
     });
 </script>

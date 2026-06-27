@@ -68,14 +68,22 @@ class PurchaseReturnController extends Controller
         $perPage = 10;
         $offset = ($page - 1) * $perPage;
 
-        $query = PurchaseOrder::with('supplier');
+        $query = PurchaseOrder::query()->with('supplier');
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhereHas('supplier', function ($sq) use ($search) {
-                        $sq->where('name', 'like', "%{$search}%");
-                    });
+            $normalized = strtoupper(str_replace([' ', '#', '-'], '', $search));
+            $digitsOnly = preg_replace('/\D+/', '', $search);
+
+            $query->where(function ($q) use ($search, $normalized, $digitsOnly) {
+                if ($digitsOnly !== '') {
+                    $q->orWhere('id', (int) $digitsOnly);
+                    $q->orWhereRaw("CONCAT('#PN', LPAD(id, 5, '0')) LIKE ?", ['%' . $search . '%']);
+                    $q->orWhereRaw("CONCAT('PN', LPAD(id, 5, '0')) LIKE ?", ['%' . $normalized . '%']);
+                }
+
+                $q->orWhereHas('supplier', function ($sq) use ($search) {
+                    $sq->where('name', 'like', "%{$search}%");
+                });
             });
         }
 
@@ -95,7 +103,8 @@ class PurchaseReturnController extends Controller
                     'supplier_name' => $supplierName,
                     'total_final_amount' => (float) $order->total_final_amount,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json([
             'results' => $orders,

@@ -491,7 +491,7 @@ class ExportController extends Controller
 
             if ($account) {
                 if ($account->current_balance < $order->paid_amount) {
-                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? ho?n t?c s? ti?n ?? thu c?a ??n h?ng n?y.');
+                    throw new \Exception('Số dư sổ quỹ không đủ để hoàn tác số tiền đã thu của đơn hàng này.');
                 }
 
                 $account->decrement('current_balance', $order->paid_amount);

@@ -57,7 +57,7 @@ class VoucherController extends Controller
                 $this->allocateDebt($request->customer_id, $request->amount, 'customer');
             } else {
                 if ($account->current_balance < $request->amount) {
-                    throw new \Exception('S? d? s? qu? kh?ng ?? ?? thanh to?n phi?u chi n?y.');
+                    throw new \Exception('Số dư sổ quỹ không đủ để thanh toán phiếu chi này.');
                 }
 
                 $voucher = CashVoucher::create($request->all());
@@ -70,7 +70,7 @@ class VoucherController extends Controller
 
             return redirect()
                 ->route('vouchers.index')
-                ->with('msg', '?? l?u phi?u v? c?p nh?t tr?ng th?i n?!');
+                ->with('msg', 'Đã lưu phiếu và cập nhật trạng thái nợ!');
         });
     }
 
