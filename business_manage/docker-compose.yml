@@ -1,5 +1,4 @@
 services:
-
   app:
     build:
       context: .
@@ -41,6 +40,23 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
       - ./manage.sql:/docker-entrypoint-initdb.d/manage.sql
+    networks:
+      - erp-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: erp-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 128M
+    depends_on:
+      - db
     networks:
       - erp-network
 
