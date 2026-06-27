@@ -36,6 +36,8 @@
                         <option value="">-- Trạng thái --</option>
                         <option value="paid" {{ request('status') == 'paid' ? 'selected' : '' }}>Đã thanh toán</option>
                         <option value="debt" {{ request('status') == 'debt' ? 'selected' : '' }}>Còn nợ NCC</option>
+                        <option value="partially_returned" {{ request('status') == 'partially_returned' ? 'selected' : '' }}>Đã hoàn trả một phần</option>
+                        <option value="returned" {{ request('status') == 'returned' ? 'selected' : '' }}>Đã hoàn trả hết</option>
                     </select>
                 </div>
 
@@ -89,10 +91,27 @@
                     <td class="text-right font-weight-bold">{{ number_format($order->total_final_amount) }} đ</td>
                     <td class="text-right text-success">{{ number_format($order->paid_amount) }} đ</td>
                     <td class="text-center">
-                        @if($order->paid_amount >= $order->total_final_amount)
-                        <span class="badge badge-success">Đã thanh toán</span>
+                        @if(in_array($order->status, ['partially_returned', 'returned']))
+                            @php
+                                $returnStatus = [
+                                    'partially_returned' => ['label' => 'Đã hoàn trả một phần', 'class' => 'warning'],
+                                    'returned' => ['label' => 'Đã hoàn trả hết', 'class' => 'danger'],
+                                ];
+
+                                $status = $returnStatus[$order->status];
+                            @endphp
+
+                            <span class="badge badge-{{ $status['class'] }}">
+                                {{ $status['label'] }}
+                            </span>
                         @else
-                        <span class="badge badge-warning">Nợ: {{ number_format($order->total_final_amount - $order->paid_amount) }} đ</span>
+                            @if($order->paid_amount >= $order->total_final_amount)
+                                <span class="badge badge-success">Đã thanh toán</span>
+                            @else
+                                <span class="badge badge-warning">
+                                    Còn nợ NCC: {{ number_format($order->total_final_amount - $order->paid_amount) }} đ
+                                </span>
+                            @endif
                         @endif
                     </td>
                     <td class="text-center">

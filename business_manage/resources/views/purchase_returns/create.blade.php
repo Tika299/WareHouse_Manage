@@ -70,7 +70,7 @@
                         <h2 class="text-warning font-weight-bold mb-0" id="total-display">0 đ</h2>
                     </div>
 
-                    <button type="submit" class="btn btn-danger btn-block btn-lg mt-3 font-weight-bold">
+                    <button type="submit" class="btn btn-danger btn-block btn-lg mt-3 font-weight-bold" id="confirmPurchaseReturnBtn">
                         <i class="fas fa-check-circle"></i> XÁC NHẬN HOÀN TRẢ
                     </button>
                 </div>
@@ -119,7 +119,7 @@
         $('#return-body').empty();
 
         if (!details || details.length === 0) {
-            $('#return-body').html('<tr id="empty-row"><td colspan="7" class="text-center p-4 text-muted">Phiếu nhập này chưa có sản phẩm hợp lệ để hoàn trả.</td></tr>');
+            $('#return-body').html('<tr id="empty-row"><td colspan="7" class="text-center p-4 text-muted">Phiếu nhập này chưa có sản phẩm để hoàn trả.</td></tr>');
             $('#total-display').text('0 đ');
             return;
         }
@@ -200,9 +200,18 @@
             allowSubmitPurchaseReturn = false;
         });
 
-        $('#purchase_order_id').on('select2:select', function(e) {
-            const data = e.params.data;
-            loadOrderDetails(data.id);
+        $('#purchase_order_id').on('select2:select change', function(e) {
+            const data = e.params && e.params.data ? e.params.data : null;
+
+            if (data && data.id) {
+                loadOrderDetails(data.id);
+                return;
+            }
+
+            const currentVal = $(this).val();
+            if (currentVal) {
+                loadOrderDetails(currentVal);
+            }
         });
 
         $(document).on('input', '.qty', function() {
@@ -222,11 +231,7 @@
         });
 
         @if($selectedOrder)
-        loadOrderDetails({
-            {
-                $selectedOrder - > id
-            }
-        });
+            loadOrderDetails({{ $selectedOrder->id }});
         @endif
     });
 </script>

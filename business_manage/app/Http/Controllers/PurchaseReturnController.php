@@ -304,6 +304,23 @@ class PurchaseReturnController extends Controller
                     'note' => 'Hoàn trả hàng cho phiếu nhập #' . $order->id,
                 ]);
 
+                $purchasedTotalQty = array_sum($purchasedQtyByProduct);
+                $returnedBeforeQty = array_sum($returnedQtyByProduct);
+                $returnedNowQty = array_sum(array_map(fn ($item) => (int) $item['quantity'], $positiveItems));
+                $returnedAfterQty = $returnedBeforeQty + $returnedNowQty;
+
+                if ($returnedAfterQty <= 0) {
+                    $newOrderStatus = 'received';
+                } elseif ($returnedAfterQty < $purchasedTotalQty) {
+                    $newOrderStatus = 'partially_returned';
+                } else {
+                    $newOrderStatus = 'returned';
+                }
+
+                $order->update([
+                    'status' => $newOrderStatus,
+                ]);
+
                 if ($request->expectsJson()) {
                     return response()->json([
                         'message' => 'Đã tạo phiếu hoàn trả thành công.',

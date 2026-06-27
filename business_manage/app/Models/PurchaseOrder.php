@@ -12,7 +12,8 @@ class PurchaseOrder extends Model
         'total_product_value',
         'extra_cost',
         'total_final_amount',
-        'paid_amount'
+        'paid_amount',
+        'status',
     ];
 
     public function supplier()

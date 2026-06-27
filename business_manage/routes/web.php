@@ -105,12 +105,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('providers', ProviderController::class);
         Route::post('/imports/{id}/pay-debt', [ImportController::class, 'payDebt'])->name('imports.payDebt');
         Route::get('/credit-logs', [CreditLogController::class, 'index'])->name('credit_logs.index');
+        Route::get('/purchase-returns/search-orders', [PurchaseReturnController::class, 'searchOrdersAjax'])->name('purchase-returns.searchOrdersAjax');
+        Route::get('/purchase-returns/get-order-details/{id}', [PurchaseReturnController::class, 'getOrderDetails'])->name('purchase-returns.getOrderDetails');
         Route::get('/purchase-returns', [PurchaseReturnController::class, 'index'])->name('purchase-returns.index');
         Route::get('/purchase-returns/create', [PurchaseReturnController::class, 'create'])->name('purchase-returns.create');
         Route::post('/purchase-returns', [PurchaseReturnController::class, 'store'])->name('purchase-returns.store');
-        Route::get('/purchase-returns/{id}', [PurchaseReturnController::class, 'show'])->name('purchase-returns.show');
-        Route::get('/purchase-returns/search-orders', [PurchaseReturnController::class, 'searchOrdersAjax'])->name('purchase-returns.searchOrdersAjax');
-        Route::get('/purchase-returns/get-order-details/{id}', [PurchaseReturnController::class, 'getOrderDetails'])->name('purchase-returns.getOrderDetails');
+        Route::get('/purchase-returns/{id}', [PurchaseReturnController::class, 'show'])
+            ->whereNumber('id')
+            ->name('purchase-returns.show');
     });
 
     // --- NHÓM BÁO CÁO ---

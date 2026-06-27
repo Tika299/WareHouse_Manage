@@ -3,6 +3,33 @@
 @section('title', 'Chi tiết phiếu nhập #' . $order->id)
 
 @section('content')
+@php
+    $purchaseStatus = $order->status ?? 'received';
+
+    $statusMap = [
+        'received' => [
+            'label' => 'Chưa hoàn trả',
+            'class' => 'secondary',
+        ],
+        'partially_returned' => [
+            'label' => 'Đã hoàn trả một phần',
+            'class' => 'warning',
+        ],
+        'returned' => [
+            'label' => 'Đã hoàn trả hết',
+            'class' => 'danger',
+        ],
+    ];
+
+    if (!isset($statusMap[$purchaseStatus])) {
+        $statusMap[$purchaseStatus] = $order->paid_amount >= $order->total_final_amount
+            ? ['label' => 'Đã thanh toán', 'class' => 'success']
+            : ['label' => 'Còn nợ NCC', 'class' => 'warning'];
+    }
+
+    $status = $statusMap[$purchaseStatus];
+@endphp
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -19,26 +46,41 @@
                 <div class="row invoice-info mt-3">
                     <div class="col-sm-4 invoice-col border-right">
                         <strong>NHÀ CUNG CẤP</strong>
-                        <address>
-                            <b class="text-primary">{{ $order->supplier->name }}</b><br>
-                            SĐT: {{ $order->supplier->phone }}<br>
-                            Địa chỉ: {{ $order->supplier->address }}
+                        <address class="mb-0">
+                            <b class="text-primary">{{ $order->supplier->name ?? 'N/A' }}</b><br>
+                            SĐT: {{ $order->supplier->phone ?? 'N/A' }}<br>
+                            Địa chỉ: {{ $order->supplier->address ?? 'N/A' }}
                         </address>
                     </div>
+
                     <div class="col-sm-4 invoice-col border-right pl-4">
                         <strong>THANH TOÁN</strong>
-                        <address>
+                        <address class="mb-0">
                             Tài khoản chi: {{ $order->account->name ?? 'N/A' }}<br>
                             Đã trả NCC: <b class="text-success">{{ number_format($order->paid_amount) }} đ</b><br>
-                            Còn nợ: <b class="text-danger">{{ number_format($order->total_final_amount - $order->paid_amount) }} đ</b>
+                            Còn nợ: <b class="text-danger">{{ number_format(max(0, $order->total_final_amount - $order->paid_amount)) }} đ</b><br>
+                            Trạng thái thanh toán:
+                            @if($order->paid_amount >= $order->total_final_amount)
+                                <span class="badge badge-success">Đã thanh toán</span>
+                            @else
+                                <span class="badge badge-warning">Còn nợ NCC</span>
+                            @endif
                         </address>
                     </div>
+
                     <div class="col-sm-4 invoice-col pl-4">
                         <strong>MÃ PHIẾU: #PN{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</strong><br>
                         <br>
                         <b>Tổng tiền hàng:</b> {{ number_format($order->total_product_value) }} đ<br>
                         <b>Phí phát sinh:</b> <span class="text-primary">+{{ number_format($order->extra_cost) }} đ</span><br>
                         <b class="h4 text-danger">TỔNG CỘNG: {{ number_format($order->total_final_amount) }} đ</b>
+
+                        <div class="mt-2">
+                            <span class="badge badge-{{ $status['class'] }} px-3 py-2">
+                                {{ $status['label'] }}
+                            </span>
+                        </div>
+
                         <div class="mt-2">
                             <span class="badge badge-pill badge-light border text-muted px-3 py-2">
                                 Đã có {{ $purchaseReturnCount ?? 0 }} phiếu hoàn trả
@@ -63,18 +105,18 @@
                             </thead>
                             <tbody class="text-13">
                                 @foreach($order->details as $index => $item)
-                                <tr>
-                                    <td>{{ $index + 1 }}</td>
-                                    <td>
-                                        <b>{{ $item->product->name }}</b><br>
-                                        <small class="text-muted">SKU: {{ $item->product->sku }}</small>
-                                    </td>
-                                    <td class="text-center font-weight-bold">{{ $item->quantity }}</td>
-                                    <td class="text-right">{{ number_format($item->import_price) }} đ</td>
-                                    <td class="text-right text-primary">+{{ number_format($item->allocated_cost) }} đ</td>
-                                    <td class="text-right text-danger font-weight-bold">{{ number_format($item->final_unit_cost) }} đ</td>
-                                    <td class="text-right font-weight-bold">{{ number_format($item->quantity * $item->import_price) }} đ</td>
-                                </tr>
+                                    <tr>
+                                        <td>{{ $index + 1 }}</td>
+                                        <td>
+                                            <b>{{ $item->product->name ?? 'Sản phẩm đã bị xóa' }}</b><br>
+                                            <small class="text-muted">SKU: {{ $item->product->sku ?? '---' }}</small>
+                                        </td>
+                                        <td class="text-center font-weight-bold">{{ $item->quantity }}</td>
+                                        <td class="text-right">{{ number_format($item->import_price) }} đ</td>
+                                        <td class="text-right text-primary">+{{ number_format($item->allocated_cost) }} đ</td>
+                                        <td class="text-right text-danger font-weight-bold">{{ number_format($item->final_unit_cost) }} đ</td>
+                                        <td class="text-right font-weight-bold">{{ number_format($item->quantity * $item->final_unit_cost) }} đ</td>
+                                    </tr>
                                 @endforeach
                             </tbody>
                         </table>

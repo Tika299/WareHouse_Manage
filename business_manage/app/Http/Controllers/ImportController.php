@@ -15,23 +15,42 @@ class ImportController extends Controller
         $query = PurchaseOrder::with('supplier');
 
         if ($request->filled('search')) {
-            $search = $request->input('search');
+            $search = trim((string) $request->input('search'));
             $searchId = preg_replace('/[^0-9]/', '', $search);
 
-            $query->where(function ($q) use ($searchId) {
-                $q->where('id', $searchId);
-            });
+            if ($searchId !== '') {
+                $query->where('id', $searchId);
+            }
         }
 
-        $query->when($request->supplier_id, function ($q) {
-            return $q->where('supplier_id', request('supplier_id'));
+        $query->when($request->supplier_id, function ($q) use ($request) {
+            return $q->where('supplier_id', $request->supplier_id);
         });
 
         if ($request->filled('status')) {
-            if ($request->status == 'paid') {
-                $query->whereColumn('paid_amount', '>=', 'total_final_amount');
-            } elseif ($request->status == 'debt') {
-                $query->whereColumn('paid_amount', '<', 'total_final_amount');
+            switch ($request->status) {
+                case 'paid':
+                    $query->whereColumn('paid_amount', '>=', 'total_final_amount');
+                    break;
+
+                case 'debt':
+                    $query->whereColumn('paid_amount', '<', 'total_final_amount');
+                    break;
+
+                case 'received':
+                    $query->where(function ($q) {
+                        $q->whereNull('status')
+                        ->orWhere('status', 'received');
+                    });
+                    break;
+
+                case 'partially_returned':
+                    $query->where('status', 'partially_returned');
+                    break;
+
+                case 'returned':
+                    $query->where('status', 'returned');
+                    break;
             }
         }
 
