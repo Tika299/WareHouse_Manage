@@ -22,6 +22,7 @@
             </div>
             <div class="icon"><i class="fas {{ $acc->type == 'cash' ? 'fa-wallet' : 'fa-university' }}"></i></div>
             <a href="{{ route('accounts.show', $acc->id) }}" class="small-box-footer">Xem sổ chi tiết <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('accounts.edit', $acc->id) }}" class="small-box-footer">Sửa số dư <i class="fas fa-pen"></i></a>    
         </div>
     </div>
     @endforeach

@@ -65,4 +65,34 @@ class AccountController extends Controller
             'activeName' => 'accounts'
         ]);
     }
+
+    public function edit(Account $account)
+    {
+        return view('accounts.edit', [
+            'account' => $account,
+            'activeGroup' => 'finance',
+            'activeName' => 'accounts'
+        ]);
+    }
+
+    public function update(Request $request, Account $account)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255|unique:accounts,name,' . $account->id,
+            'type' => 'required|in:cash,bank',
+            'initial_balance' => 'required|numeric|min:0',
+            'current_balance' => 'required|numeric|min:0',
+        ]);
+
+        $account->update([
+            'name' => $request->name,
+            'type' => $request->type,
+            'initial_balance' => $request->initial_balance,
+            'current_balance' => $request->current_balance,
+        ]);
+
+        return redirect()
+            ->route('accounts.index')
+            ->with('msg', 'Đã cập nhật số dư tài khoản thành công!');
+    }
 }
